@@ -1,0 +1,1487 @@
+<title>PersonalNotebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: one floating editor window. Sidebar | (tabs, filter bar, editor + minimap, results panel) over a status bar. Single committed Monokai dark look. */
+:root {
+  color-scheme: dark;
+  --page: #141511;
+  --bg: #272822;
+  --bg-deep: #1e1f1b;
+  --bg-bar: #22231e;
+  --line: #3a3b34;
+  --fg: #f8f8f2;
+  --fg-dim: #a8a89c;
+  --fg-mute: #75715e;
+  --sel: #49483e;
+  --active: #34352d;
+  --pink: #f92672;
+  --green: #a6e22e;
+  --orange: #fd971f;
+  --blue: #66d9ef;
+  --purple: #ae81ff;
+  --yellow: #e6db74;
+  --font-ui: "IBM Plex Sans", system-ui, "Segoe UI", "Noto Sans TC", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, "Noto Sans Mono CJK TC", monospace;
+}
+html, body { height: 100%; box-sizing: border-box; }
+body {
+  margin: 0;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--page);
+  color: var(--fg);
+  font: 13px/1.4 var(--font-ui);
+  overflow: hidden;
+}
+*, *::before, *::after { box-sizing: border-box; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible, select:focus-visible, .tab:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.ico { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.spacer { flex: 1; }
+
+/* ---------- window ---------- */
+.app {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sidebar { grid-column: 1; grid-row: 1; width: 236px; display: flex; flex-direction: column; background: var(--bg-deep); border-right: 1px solid var(--line); min-height: 0; }
+.main { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.statusbar { grid-column: 1 / -1; grid-row: 2; }
+.sidebar[hidden] { display: none; }
+
+/* ---------- sidebar ---------- */
+.side-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 6px 14px; font-size: 10.5px; letter-spacing: .12em; color: var(--fg-mute); font-weight: 600; }
+.icon-btn { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--fg-dim); }
+.icon-btn:hover { background: var(--active); color: var(--fg); }
+.note-list { list-style: none; margin: 0; padding: 0 0 6px; overflow: auto; flex: 1 1 auto; min-height: 60px; }
+.note { display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 14px; cursor: pointer; color: var(--fg-dim); }
+.note:hover { background: var(--active); }
+.note.active { background: var(--sel); color: var(--fg); }
+.note .n-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note .n-lang { font: 10px var(--font-mono); color: var(--fg-mute); text-transform: uppercase; }
+.note .n-del { width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 3px; color: var(--fg-mute); }
+.note:hover .n-del, .note.arm .n-del { display: inline-flex; }
+.note .n-del:hover { color: var(--pink); }
+.note.arm { background: rgba(249, 38, 114, .16); }
+.note.arm .n-del { color: var(--pink); }
+.n-rename { flex: 1; min-width: 0; background: #1b1c18; color: var(--fg); border: 1px solid var(--orange); border-radius: 3px; font: inherit; padding: 1px 4px; outline: 0; }
+.tags-head { border-top: 1px solid var(--line); }
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 12px 14px; max-height: 34%; overflow: auto; }
+.tag { padding: 2px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 11.5px; color: var(--fg-dim); }
+.tag:hover { border-color: var(--fg-mute); color: var(--fg); }
+.tag.on { background: rgba(253, 151, 31, .16); border-color: var(--orange); color: var(--orange); }
+.tag small { color: var(--fg-mute); margin-left: 4px; }
+.side-empty { padding: 2px 14px 12px; color: var(--fg-mute); font-size: 12px; }
+
+/* ---------- tabs ---------- */
+.tabbar { display: flex; align-items: stretch; background: var(--bg-deep); border-bottom: 1px solid var(--line); min-height: 34px; }
+.tabbar > .icon-btn { align-self: center; margin: 0 4px; }
+.tabs { display: flex; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; color: var(--fg-mute); border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; user-select: none; }
+.tab:hover { color: var(--fg-dim); }
+.tab.active { background: var(--bg); color: var(--fg); }
+.tab-x { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; opacity: .5; }
+.tab:hover .tab-x, .tab.active .tab-x { opacity: 1; }
+.tab-x:hover { background: var(--sel); }
+.tabbar > #btnNewTab { align-self: center; margin-left: 4px; }
+
+/* ---------- filter bar ---------- */
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 7px 10px; background: var(--bg-bar); border-bottom: 1px solid var(--line); }
+.filterbar[hidden] { display: none; }
+.fb-input { flex: 1 1 220px; min-width: 0; display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px; background: #1b1c18; border: 1px solid var(--line); border-radius: 4px; color: var(--fg-mute); }
+.fb-input:focus-within { border-color: var(--orange); color: var(--orange); }
+.fb-input.err { border-color: var(--pink); color: var(--pink); }
+.fb-input input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--fg); font: 13px var(--font-mono); }
+.fb-input input::placeholder { color: var(--fg-mute); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { height: 26px; padding: 0 10px; font-size: 12px; color: var(--fg-dim); }
+.seg button:hover { color: var(--fg); }
+.seg button.on { background: var(--orange); color: #1b1c18; font-weight: 600; }
+.tog { height: 28px; min-width: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 4px; font: 12px var(--font-mono); color: var(--fg-dim); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.tog:hover { color: var(--fg); border-color: var(--fg-mute); }
+.tog.on { background: rgba(253, 151, 31, .16); border-color: var(--orange); color: var(--orange); }
+.tog.txt { font-family: var(--font-ui); }
+.ctx { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-dim); }
+.ctx input { width: 42px; height: 28px; background: #1b1c18; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font: 12px var(--font-mono); }
+.ctx input:focus { outline: 0; border-color: var(--orange); }
+.fb-count { font: 11.5px var(--font-mono); color: var(--fg-dim); min-width: 0; font-variant-numeric: tabular-nums; }
+.fb-count.err { color: var(--pink); }
+
+/* ---------- editor ---------- */
+.editor-wrap { flex: 1 1 auto; min-height: 0; display: flex; }
+.editor { position: relative; flex: 1; min-width: 0; }
+.editor .CodeMirror { position: absolute; inset: 0; height: auto; }
+.minimap { flex: none; width: 96px; position: relative; background: #24251f; border-left: 1px solid var(--line); cursor: pointer; touch-action: none; }
+.minimap[hidden] { display: none; }
+.minimap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ---------- results panel ---------- */
+.results { flex: none; height: min(36%, 240px); min-height: 120px; display: flex; flex-direction: column; background: var(--bg-deep); border-top: 1px solid var(--line); }
+.results[hidden] { display: none; }
+.res-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 3px 6px 3px 12px; min-height: 32px; border-bottom: 1px solid var(--line); }
+.res-title { font-size: 10.5px; letter-spacing: .12em; color: var(--fg-mute); font-weight: 600; text-transform: uppercase; }
+.res-meta { font: 11.5px var(--font-mono); color: var(--fg-dim); margin-left: 6px; }
+.act { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 4px; font-size: 12px; color: var(--fg-dim); border: 1px solid transparent; }
+.act:hover { background: var(--active); color: var(--fg); border-color: var(--line); }
+.act.danger:hover { color: var(--pink); }
+.res-body { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; font: 12px var(--font-mono); }
+.res-rows { position: absolute; left: 0; right: 0; top: 0; }
+.res-row { position: absolute; left: 0; right: 0; height: 20px; line-height: 20px; display: flex; gap: 12px; padding: 0 12px; cursor: pointer; white-space: pre; }
+.res-row:hover { background: var(--active); }
+.res-row .rn { flex: none; width: 6ch; text-align: right; color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+.res-row .rt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.res-row.ctx .rt { color: var(--fg-mute); }
+.res-row mark { background: rgba(253, 151, 31, .3); color: #fff; border-radius: 2px; }
+.res-empty { padding: 14px 14px; color: var(--fg-mute); font: 12.5px var(--font-ui); max-width: 60ch; }
+
+/* ---------- status bar ---------- */
+.statusbar { display: flex; align-items: center; gap: 14px; min-height: 24px; padding: 2px 12px; background: #1a1b17; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; }
+.statusbar > span { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.st-filter { color: var(--orange); }
+.st-filter.err { color: var(--pink); }
+.statusbar button, .statusbar select { height: 20px; padding: 0 6px; border-radius: 3px; font: 11.5px var(--font-ui); color: var(--fg-dim); background: none; border: 0; }
+.statusbar button:hover, .statusbar select:hover { background: var(--active); color: var(--fg); }
+.statusbar select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 8px; }
+.statusbar select option { background: #2d2e27; color: var(--fg); }
+.statusbar .on { color: var(--orange); }
+
+/* ---------- palette + toast ---------- */
+.pal-backdrop { position: absolute; inset: 0; z-index: 50; display: flex; justify-content: center; align-items: flex-start; padding: 9% 12px 0; background: rgba(10, 10, 8, .45); }
+.pal-backdrop[hidden] { display: none; }
+.pal { width: min(560px, 100%); background: #2d2e27; border: 1px solid #4a4b42; border-radius: 6px; box-shadow: 0 18px 50px rgba(0, 0, 0, .5); overflow: hidden; }
+.pal input { width: 100%; height: 40px; padding: 0 14px; background: #1b1c18; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: 14px var(--font-ui); outline: 0; }
+.pal input::placeholder { color: var(--fg-mute); }
+.pal ul { list-style: none; margin: 0; padding: 4px 0; max-height: min(320px, 50vh); overflow: auto; }
+.pal li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.pal li.sel { background: var(--sel); }
+.pal li b { color: var(--orange); font-weight: 600; }
+.pal li .hint { color: var(--fg-mute); font: 11.5px var(--font-mono); white-space: nowrap; }
+.pal li .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal .pal-empty { padding: 10px 14px; color: var(--fg-mute); font-size: 12.5px; }
+.toast { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); z-index: 60; max-width: calc(100% - 32px); padding: 7px 14px; background: #3a3b34; border: 1px solid #55564c; border-radius: 5px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+.toast[hidden] { display: none; }
+
+/* ---------- CodeMirror 5 core (inlined, stylesheets from CDN are blocked) ---------- */
+.CodeMirror { font-family: var(--font-mono); font-size: 13px; line-height: 1.6; direction: ltr; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); }
+.CodeMirror-lines { padding: 6px 0; cursor: text; min-height: 1px; }
+.CodeMirror pre.CodeMirror-line, .CodeMirror pre.CodeMirror-line-like { padding: 0 6px; border-radius: 0; border-width: 0; background: transparent; font-family: inherit; font-size: inherit; margin: 0; white-space: pre; word-wrap: normal; line-height: inherit; color: inherit; z-index: 2; position: relative; overflow: visible; -webkit-tap-highlight-color: transparent; font-variant-ligatures: none; }
+.CodeMirror-wrap pre.CodeMirror-line, .CodeMirror-wrap pre.CodeMirror-line-like { word-wrap: break-word; white-space: pre-wrap; word-break: normal; }
+.CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler { background-color: var(--bg); }
+.CodeMirror-gutters { position: absolute; left: 0; top: 0; min-height: 100%; z-index: 3; white-space: nowrap; background: var(--bg); border-right: 0; }
+.CodeMirror-gutter { white-space: normal; height: 100%; display: inline-block; vertical-align: top; margin-bottom: -50px; }
+.CodeMirror-gutter-wrapper { position: absolute; z-index: 4; background: none !important; border: none !important; }
+.CodeMirror-gutter-background { position: absolute; top: 0; bottom: 0; z-index: 4; }
+.CodeMirror-gutter-elt { position: absolute; cursor: default; z-index: 4; }
+.CodeMirror-linenumber { padding: 0 10px 0 14px; min-width: 28px; text-align: right; color: #75715e; white-space: nowrap; box-sizing: content-box; }
+.CodeMirror-cursor { position: absolute; pointer-events: none; border-left: 2px solid #f8f8f0; border-right: none; width: 0; }
+.CodeMirror div.CodeMirror-secondarycursor { border-left: 2px solid #a8a89c; }
+.cm-fat-cursor .CodeMirror-cursor { width: auto; border: 0 !important; background: #77ee77; }
+.cm-tab { display: inline-block; text-decoration: inherit; }
+.CodeMirror-scroll { overflow: scroll !important; margin-bottom: -50px; margin-right: -50px; padding-bottom: 50px; height: 100%; outline: none; position: relative; z-index: 0; box-sizing: content-box; }
+.CodeMirror-sizer { position: relative; border-right: 50px solid transparent; box-sizing: content-box; }
+.CodeMirror-vscrollbar, .CodeMirror-hscrollbar, .CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler { position: absolute; z-index: 6; display: none; outline: none; }
+.CodeMirror-vscrollbar { right: 0; top: 0; overflow-x: hidden; overflow-y: scroll; }
+.CodeMirror-hscrollbar { bottom: 0; left: 0; overflow-y: hidden; overflow-x: scroll; }
+.CodeMirror-scrollbar-filler { right: 0; bottom: 0; }
+.CodeMirror-gutter-filler { left: 0; bottom: 0; }
+.CodeMirror-linebackground { position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: 0; }
+.CodeMirror-linewidget { position: relative; z-index: 2; padding: 0.1px; }
+.CodeMirror-code { outline: none; }
+.CodeMirror-measure { position: absolute; width: 100%; height: 0; overflow: hidden; visibility: hidden; }
+.CodeMirror-measure pre { position: static; }
+div.CodeMirror-cursors { visibility: hidden; position: relative; z-index: 3; }
+div.CodeMirror-dragcursors { visibility: visible; }
+.CodeMirror-focused div.CodeMirror-cursors { visibility: visible; }
+.CodeMirror-selected { background: #3c3b32; }
+.CodeMirror-focused .CodeMirror-selected { background: var(--sel); }
+.CodeMirror-crosshair { cursor: crosshair; }
+.cm-force-border { padding-right: .1px; }
+span.CodeMirror-selectedtext { background: none; }
+.CodeMirror-vscrollbar, .CodeMirror-hscrollbar { scrollbar-color: #4a4b42 transparent; }
+
+/* ---------- Monokai-style theme + Line Filter decorations ---------- */
+.cm-s-sublime .CodeMirror-activeline-background { background: #31322a; }
+.cm-s-sublime .CodeMirror-activeline-gutter .CodeMirror-linenumber { color: #c8c8bd; }
+.cm-s-sublime .cm-keyword, .cm-s-sublime .cm-operator, .cm-s-sublime .cm-tag { color: #f92672; }
+.cm-s-sublime .cm-atom, .cm-s-sublime .cm-number { color: #ae81ff; }
+.cm-s-sublime .cm-string, .cm-s-sublime .cm-string-2 { color: #e6db74; }
+.cm-s-sublime .cm-comment { color: #75715e; }
+.cm-s-sublime .cm-def, .cm-s-sublime .cm-attribute, .cm-s-sublime .cm-qualifier { color: #a6e22e; }
+.cm-s-sublime .cm-variable-2 { color: #9effff; }
+.cm-s-sublime .cm-variable-3, .cm-s-sublime .cm-type, .cm-s-sublime .cm-builtin { color: #66d9ef; }
+.cm-s-sublime .cm-meta, .cm-s-sublime .cm-bracket { color: #a8a89c; }
+.cm-s-sublime .cm-header { color: #fd971f; font-weight: 600; }
+.cm-s-sublime .cm-link { color: #66d9ef; text-decoration: underline; }
+.cm-s-sublime .cm-url { color: #75715e; }
+.cm-s-sublime .cm-quote { color: #a8a89c; font-style: italic; }
+.cm-s-sublime .cm-strong { font-weight: 700; }
+.cm-s-sublime .cm-em { font-style: italic; }
+.cm-s-sublime .cm-error { color: #f8f8f0; background: #f92672; }
+.cm-s-sublime .CodeMirror-matchingbracket { color: #f8f8f2 !important; background: rgba(255, 255, 255, .08); outline: 1px solid #75715e; }
+.cm-s-sublime .CodeMirror-nonmatchingbracket { color: #f92672 !important; }
+.cm-matchhighlight { background: rgba(255, 255, 255, .12); }
+.cm-log-ts { color: #75715e; }
+.cm-log-error { color: #f92672; font-weight: 700; }
+.cm-log-warn { color: #fd971f; font-weight: 700; }
+.cm-log-info { color: #a6e22e; }
+.cm-log-debug { color: #66d9ef; }
+.cm-log-ip { color: #ae81ff; }
+.cm-log-bracket { color: #e6db74; }
+.cm-log-key { color: #a8a89c; }
+.filter-hit { background: rgba(253, 151, 31, .11); }
+.filter-ctx { background: rgba(253, 151, 31, .04); }
+.filter-excluded { background: rgba(249, 38, 114, .09); }
+.filter-hit.CodeMirror-activeline-background { background: rgba(253, 151, 31, .2); }
+.filter-hit-gutter .CodeMirror-linenumber { color: #fd971f; }
+.filter-excluded-gutter .CodeMirror-linenumber { color: #f92672; }
+.filter-match { background: rgba(253, 151, 31, .38); color: #fff; border-radius: 2px; }
+.fold-dots { display: inline-block; margin-left: 10px; padding: 0 7px; font: 11px/1.5 var(--font-mono); color: var(--fg-mute); background: #34352d; border: 1px solid var(--line); border-radius: 9px; vertical-align: 1px; cursor: default; }
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 720px) {
+  .sidebar { position: absolute; grid-area: auto; z-index: 30; top: 0; bottom: 0; left: 0; width: min(260px, 82%); box-shadow: 8px 0 30px rgba(0, 0, 0, .5); }
+  .minimap { display: none; }
+  .hide-narrow { display: none; }
+  .results { height: min(40%, 200px); }
+  .filterbar { padding: 6px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Notes and tags">
+    <div class="side-head"><span data-i18n="notes">NOTES</span><button class="icon-btn" id="btnNew" data-i18n-title="tipNewNote" aria-label="New note" data-icon="plus"></button></div>
+    <ul class="note-list" id="noteList"></ul>
+    <div class="side-head tags-head"><span data-i18n="tags">TAGS</span></div>
+    <div class="tag-list" id="tagList"></div>
+  </aside>
+
+  <section class="main">
+    <div class="tabbar">
+      <button class="icon-btn" id="btnSidebar" data-i18n-title="tipSidebar" aria-label="Toggle sidebar" data-icon="sidebar"></button>
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <button class="icon-btn" id="btnNewTab" data-i18n-title="tipNewTab" aria-label="New tab" data-icon="plus"></button>
+    </div>
+
+    <div class="filterbar" id="filterbar">
+      <label class="fb-input" id="fbWrap"><span data-icon="filter"></span><input id="fbQuery" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="phFilter" aria-label="Line filter"></label>
+      <div class="seg" role="group" aria-label="Filter mode">
+        <button id="fbInclude" class="on" data-i18n="include" data-i18n-title="tipInclude">Include</button>
+        <button id="fbExclude" data-i18n="exclude" data-i18n-title="tipExclude">Exclude</button>
+      </div>
+      <button class="tog" id="fbRegex" data-i18n-title="tipRegex" aria-label="Regex">.*</button>
+      <button class="tog" id="fbCase" data-i18n-title="tipCase" aria-label="Case sensitive">Aa</button>
+      <label class="ctx" data-i18n-title="tipContext"><span data-i18n="context">Context</span><input id="fbCtx" type="number" min="0" max="9" value="0"></label>
+      <button class="tog txt" id="fbFold" data-i18n="fold" data-i18n-title="tipFold">Fold unmatched</button>
+      <button class="tog txt" id="fbPanel" data-i18n="panel" data-i18n-title="tipPanel">Results</button>
+      <span class="fb-count" id="fbCount"></span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="fbClose" data-i18n-title="tipCloseFilter" aria-label="Close filter" data-icon="close"></button>
+    </div>
+
+    <div class="editor-wrap">
+      <div class="editor" id="editor"></div>
+      <div class="minimap" id="minimap" aria-hidden="true"><canvas id="mmCanvas"></canvas></div>
+    </div>
+
+    <section class="results" id="results" aria-label="Filter results">
+      <div class="res-head">
+        <span class="res-title" data-i18n="resTitle">Filter Results</span><span class="res-meta" id="resMeta"></span>
+        <span class="spacer"></span>
+        <button class="act" data-act="copy" data-i18n-title="tipCopy"><span data-icon="copy"></span><span data-i18n="copy">Copy</span></button>
+        <button class="act" data-act="export" data-i18n-title="tipExport"><span data-icon="export"></span><span data-i18n="export">To new tab</span></button>
+        <button class="act danger" data-act="delmatch" data-i18n-title="tipDelMatch"><span data-icon="trash"></span><span data-i18n="delMatch">Delete matched</span></button>
+        <button class="act danger" data-act="delunmatch" data-i18n-title="tipDelUnmatch"><span data-icon="trash"></span><span data-i18n="delUnmatch">Delete unmatched</span></button>
+        <button class="icon-btn" id="resClose" data-i18n-title="tipCloseRes" aria-label="Close results" data-icon="close"></button>
+      </div>
+      <div class="res-body" id="resBody"><div id="resSpacer"></div><div class="res-rows" id="resRows"></div></div>
+    </section>
+  </section>
+
+  <footer class="statusbar">
+    <span id="stPos">Ln 1, Col 1</span>
+    <span id="stDoc" class="hide-narrow"></span>
+    <span id="stFilter" class="st-filter"></span>
+    <span class="spacer"></span>
+    <button id="stI18n" data-i18n-title="tipLang">EN</button>
+    <button id="stMap" class="hide-narrow" data-i18n="minimap" data-i18n-title="tipMinimap">Minimap</button>
+    <button id="stWrap" data-i18n="wrap" data-i18n-title="tipWrap">Wrap</button>
+    <select id="stLang" aria-label="Syntax"></select>
+  </footer>
+
+  <div class="pal-backdrop" id="palette" hidden>
+    <div class="pal" role="dialog" aria-label="Command palette">
+      <input id="palInput" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="phPalette">
+      <ul id="palList" role="listbox"></ul>
+    </div>
+  </div>
+  <div class="toast" id="toast" hidden role="status"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/meta.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/match-highlighter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/sublime.min.js"></script>
+<script>
+(function () {
+'use strict';
+
+if (typeof CodeMirror === 'undefined') {
+  document.getElementById('app').innerHTML = '<p style="padding:24px;color:#f8f8f2">The editor library could not be loaded from the CDN. Check your connection and reload.</p>';
+  return;
+}
+
+const $ = (s, r = document) => r.querySelector(s);
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+const fmtN = n => n.toLocaleString('en-US');
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+};
+
+/* ============================================================
+   i18n  (zh-Hant / en)
+   ============================================================ */
+/*I18N*/
+let lang = 'zh';
+const kb = k => k.replace('Mod', isMac ? '⌘' : 'Ctrl');
+const I18N = {
+  zh: {
+    notes: '筆記', tags: '標籤',
+    tipNewNote: '新增筆記 (Alt+N)', tipSidebar: '收合側邊欄 (Mod+B)', tipNewTab: '新增分頁 (Alt+N)',
+    phFilter: '過濾行…   Enter 下一筆 · Shift+Enter 上一筆',
+    include: '包含', exclude: '排除', tipInclude: '只保留包含關鍵字的行', tipExclude: '排除包含關鍵字的行',
+    tipRegex: '正規表示式 (Alt+R)', tipCase: '大小寫相符 (Alt+C)',
+    context: '上下文', tipContext: 'Include 模式下，在每個匹配行前後多顯示幾行',
+    fold: '摺疊未匹配行', tipFold: '在編輯器內摺疊未匹配的行', panel: '結果面板', tipPanel: '顯示 / 隱藏結果面板',
+    tipCloseFilter: '關閉過濾 (Esc 回到編輯器)',
+    resTitle: '過濾結果', copy: '複製', tipCopy: '複製過濾後的行',
+    export: '匯出為新分頁', tipExport: '把過濾後的行匯出成新分頁',
+    delMatch: '刪除匹配行', tipDelMatch: '刪除符合關鍵字的行 (可用 Mod+Z 還原)',
+    delUnmatch: '刪除未匹配行', tipDelUnmatch: '刪除不符合關鍵字的行 (可用 Mod+Z 還原)',
+    tipCloseRes: '關閉結果面板', minimap: 'Minimap', tipMinimap: '切換 Minimap',
+    wrap: '自動換行', tipWrap: '切換自動換行', tipLang: '切換語言 / Switch language (Alt+L)',
+    phPalette: '跳到筆記…   輸入 > 執行指令 · 輸入 : 跳到行號',
+    noTagNotes: '沒有符合此標籤的筆記。', tagHint: '在 Markdown 筆記中輸入 #標籤 即可出現在這裡。',
+    tipDeleteNote: '刪除筆記',
+    toastLang: '已切換為中文', toastSaved: '已儲存到此瀏覽器', toastDeleted: '已刪除 {name}',
+    toastArm: '再按一次垃圾桶圖示即可刪除此筆記',
+    toastEnterFilter: '請先輸入過濾條件', toastBadRegex: '請先修正正規表示式',
+    toastNoCopy: '沒有可複製的行', toastCopied: '已複製 {n} 行', toastCopyBlocked: '瀏覽器封鎖了複製，請改用「匯出為新分頁」。',
+    toastNoExport: '沒有可匯出的行', toastExported: '已匯出 {n} 行', toastNothingDel: '沒有可刪除的行',
+    toastDelM: '已刪除 {n} 行匹配行 · 按 {k}+Z 還原', toastDelU: '已刪除 {n} 行未匹配行 · 按 {k}+Z 還原',
+    invalidRegex: '正規表示式無效', cntInc: '{h} / {n} 行匹配', cntExc: '保留 {h} / {n} 行',
+    stFilter: '過濾：{h} / {n} 行 ({pct}%) · {ms} ms', stFilterErr: '過濾：{e}', stFolded: ' · 已摺疊',
+    resMeta: '{h} 行 / 共 {n} 行 · {ms} ms', resMetaCtx: '{h} 行 + {c} 行上下文 / 共 {n} 行 · {ms} ms',
+    resHint: '在過濾列輸入關鍵字即可擷取行。結果保留原始行號，點一下即可跳轉。',
+    resBadRegex: '正規表示式無效：{e}', resNone: '目前的過濾條件沒有可顯示的行。',
+    stPos: '第 {l} 行，第 {c} 欄', stSels: ' · {n} 個游標', stSelected: ' · 已選取 {n} 字元',
+    stDoc: '{c} 字元 · {l} 行 · UTF-8',
+    palEmpty: '沒有符合的項目', palLineHint: '輸入行號，例如 :120', goLine: '跳到第 {n} 行', lastLine: '（最後一行）'
+  },
+  en: {
+    notes: 'NOTES', tags: 'TAGS',
+    tipNewNote: 'New note (Alt+N)', tipSidebar: 'Toggle sidebar (Mod+B)', tipNewTab: 'New tab (Alt+N)',
+    phFilter: 'Filter lines…   Enter next · Shift+Enter previous',
+    include: 'Include', exclude: 'Exclude', tipInclude: 'Keep only lines that contain the keyword', tipExclude: 'Drop lines that contain the keyword',
+    tipRegex: 'Regular expression (Alt+R)', tipCase: 'Match case (Alt+C)',
+    context: 'Context', tipContext: 'In Include mode, also show N lines around each match',
+    fold: 'Fold unmatched', tipFold: 'Collapse non-matching lines inside the editor', panel: 'Results', tipPanel: 'Show or hide the results panel',
+    tipCloseFilter: 'Close filter (Esc returns to the editor)',
+    resTitle: 'Filter Results', copy: 'Copy', tipCopy: 'Copy the filtered lines',
+    export: 'To new tab', tipExport: 'Export the filtered lines to a new tab',
+    delMatch: 'Delete matched', tipDelMatch: 'Delete lines that contain the keyword (Mod+Z undoes it)',
+    delUnmatch: 'Delete unmatched', tipDelUnmatch: 'Delete lines that do not contain the keyword (Mod+Z undoes it)',
+    tipCloseRes: 'Close results panel', minimap: 'Minimap', tipMinimap: 'Toggle minimap',
+    wrap: 'Wrap', tipWrap: 'Toggle word wrap', tipLang: 'Switch language / 切換語言 (Alt+L)',
+    phPalette: 'Go to note…   type > for commands · : for a line number',
+    noTagNotes: 'No notes with this tag.', tagHint: 'Type #tag in a Markdown note and it shows up here.',
+    tipDeleteNote: 'Delete note',
+    toastLang: 'Switched to English', toastSaved: 'Saved to this browser', toastDeleted: 'Deleted {name}',
+    toastArm: 'Click the trash icon again to delete this note',
+    toastEnterFilter: 'Enter a filter first', toastBadRegex: 'Fix the regular expression first',
+    toastNoCopy: 'No lines to copy', toastCopied: 'Copied {n} lines', toastCopyBlocked: 'Copy was blocked by the browser. Use "To new tab" instead.',
+    toastNoExport: 'No lines to export', toastExported: 'Exported {n} lines', toastNothingDel: 'Nothing to delete',
+    toastDelM: 'Deleted {n} matched lines · {k}+Z to undo', toastDelU: 'Deleted {n} unmatched lines · {k}+Z to undo',
+    invalidRegex: 'Invalid regex', cntInc: '{h} of {n} lines match', cntExc: '{h} of {n} lines kept',
+    stFilter: 'Filter: {h} / {n} lines ({pct}%) · {ms} ms', stFilterErr: 'Filter: {e}', stFolded: ' · folded',
+    resMeta: '{h} lines of {n} · {ms} ms', resMetaCtx: '{h} lines + {c} context of {n} · {ms} ms',
+    resHint: 'Type in the filter bar to extract lines. Results keep their original line numbers; click one to jump to it.',
+    resBadRegex: 'The regular expression is not valid: {e}', resNone: 'No lines to show for this filter.',
+    stPos: 'Ln {l}, Col {c}', stSels: ' · {n} selections', stSelected: ' · {n} selected',
+    stDoc: '{c} chars · {l} lines · UTF-8',
+    palEmpty: 'No matches', palLineHint: 'Type a line number, for example :120', goLine: 'Go to line {n}', lastLine: ' (last line)'
+  }
+};
+const CMD_ZH = {
+  'File: New Note': '檔案：新增筆記', 'File: Close Tab': '檔案：關閉分頁', 'File: Save': '檔案：儲存',
+  'View: Toggle Sidebar': '檢視：切換側邊欄', 'View: Toggle Minimap': '檢視：切換 Minimap', 'View: Toggle Word Wrap': '檢視：切換自動換行',
+  'View: Switch Language (中文 / English)': '檢視：切換語言 (中文 / English)',
+  'Filter: Open Filter Bar': '過濾：開啟過濾列', 'Filter: Close and Clear Decorations': '過濾：關閉並清除標示',
+  'Filter: Include Mode (keep matching lines)': '過濾：Include 模式（保留匹配行）',
+  'Filter: Exclude Mode (drop matching lines)': '過濾：Exclude 模式（排除匹配行）',
+  'Filter: Toggle Regex': '過濾：切換 Regex', 'Filter: Toggle Case Sensitive': '過濾：切換大小寫相符',
+  'Filter: Toggle Fold Unmatched Lines': '過濾：切換摺疊未匹配行', 'Filter: Toggle Results Panel': '過濾：切換結果面板',
+  'Filter: Copy Filtered Lines': '過濾：複製過濾後的行', 'Filter: Export Filtered Lines to New Tab': '過濾：匯出過濾結果到新分頁',
+  'Filter: Delete Matched Lines': '過濾：刪除匹配行', 'Filter: Delete Unmatched Lines': '過濾：刪除未匹配行'
+};
+const cmdZh = l => CMD_ZH[l] || (l.indexOf('Syntax: ') === 0 ? '語法：' + l.slice(8) : l);
+const tr = (k, v) => {
+  let str = I18N[lang] && I18N[lang][k] != null ? I18N[lang][k] : (I18N.en[k] != null ? I18N.en[k] : k);
+  return v ? str.replace(/\{(\w+)\}/g, (m, x) => v[x] != null ? v[x] : m) : str;
+};
+/*END I18N*/
+function applyI18n() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(n => { n.textContent = tr(n.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(n => {
+    const str = kb(tr(n.dataset.i18nTitle));
+    n.title = str;
+    if (n.tagName === 'BUTTON' && !n.textContent.trim()) n.setAttribute('aria-label', str);
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(n => { n.placeholder = tr(n.dataset.i18nPh); });
+  el.stI18n.textContent = lang === 'zh' ? 'EN' : '中文';
+  renderNotes(); renderChrome(); renderResults(); updateCount(); updateFilterStatus(); updateStatus(); updateDocStats();
+  if (PAL.open) palRender();
+}
+function setLang(l) { lang = l; UI.lang = l; applyI18n(); schedulePersist(); toast(tr('toastLang')); }
+function toggleLang() { setLang(lang === 'zh' ? 'en' : 'zh'); }
+
+/* ============================================================
+   Icons
+   ============================================================ */
+const ICONS = {
+  plus: '<path d="M8 3v10M3 8h10"/>',
+  close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.2"/><path d="M10.5 3.5v-.3a.7.7 0 0 0-.7-.7H3.2a.7.7 0 0 0-.7.7v6.6a.7.7 0 0 0 .7.7h.3"/>',
+  export: '<path d="M9 2.5h4.5V7M13.5 2.5L7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/>',
+  trash: '<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>',
+  filter: '<path d="M2 3h12l-4.5 5.5v4.5l-3-1.5V8.5z"/>',
+  sidebar: '<rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M6 3v10"/>'
+};
+const icon = n => '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">' + ICONS[n] + '</svg>';
+document.querySelectorAll('[data-icon]').forEach(b => b.insertAdjacentHTML('afterbegin', icon(b.dataset.icon)));
+
+/* ============================================================
+   Custom "log" syntax mode
+   ============================================================ */
+CodeMirror.defineMode('log', function () {
+  return {
+    token: function (stream) {
+      if (stream.eatSpace()) return null;
+      if (stream.match(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?Z?/)) return 'log-ts';
+      if (stream.match(/^(?:ERROR|FATAL|CRITICAL)\b/)) return 'log-error';
+      if (stream.match(/^WARN(?:ING)?\b/)) return 'log-warn';
+      if (stream.match(/^INFO\b/)) return 'log-info';
+      if (stream.match(/^(?:DEBUG|TRACE)\b/)) return 'log-debug';
+      if (stream.match(/^\d{1,3}(?:\.\d{1,3}){3}\b/)) return 'log-ip';
+      if (stream.match(/^\[[^\]]*\]/)) return 'log-bracket';
+      if (stream.match(/^[A-Za-z_][\w.]*(?==)/)) return 'log-key';
+      if (stream.match(/^"(?:[^"\\]|\\.)*"/)) return 'string';
+      if (stream.match(/^\d+(?:\.\d+)?(?:ms|s|%|B|KB|MB)?\b/)) return 'number';
+      if (stream.match(/^[A-Za-z_][\w.\-]*/)) return null;
+      if (stream.match(/^\w+/)) return null;
+      stream.next();
+      return null;
+    }
+  };
+});
+
+const LANGS = [
+  { id: 'text', label: 'Plain Text', mode: 'text/plain', ext: ['txt'] },
+  { id: 'markdown', label: 'Markdown', mode: 'markdown', ext: ['md', 'markdown'] },
+  { id: 'log', label: 'Log', mode: 'log', ext: ['log'] },
+  { id: 'javascript', label: 'JavaScript', mode: 'javascript', ext: ['js', 'mjs', 'ts'] },
+  { id: 'json', label: 'JSON', mode: { name: 'javascript', json: true }, ext: ['json'] },
+  { id: 'python', label: 'Python', mode: 'python', ext: ['py'] },
+  { id: 'html', label: 'HTML', mode: 'htmlmixed', ext: ['html', 'htm'] },
+  { id: 'css', label: 'CSS', mode: 'css', ext: ['css'] },
+  { id: 'yaml', label: 'YAML', mode: 'yaml', ext: ['yml', 'yaml'] },
+  { id: 'shell', label: 'Shell', mode: 'shell', ext: ['sh', 'bash'] },
+  { id: 'sql', label: 'SQL', mode: 'text/x-sql', ext: ['sql'] }
+];
+const langById = id => LANGS.find(l => l.id === id) || LANGS[0];
+function langFromName(name) {
+  const m = /\.([A-Za-z0-9]+)$/.exec(name);
+  if (m) { const e = m[1].toLowerCase(); const l = LANGS.find(l => l.ext.indexOf(e) >= 0); if (l) return l.id; }
+  return 'text';
+}
+
+/* ============================================================
+   LINE FILTER ENGINE  (pure functions, no DOM, no editor)
+   ============================================================ */
+/*ENGINE*/
+function compileFilter(F) {
+  if (!F.query) return { empty: true };
+  try {
+    const flags = F.caseS ? '' : 'i';
+    if (F.regex) {
+      const re = new RegExp(F.query, flags);                 // stateless: used for test()
+      return { test: s => re.test(s), re: new RegExp(F.query, flags + 'g') };  // global: used for highlighting
+    }
+    const esc = F.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const q = F.caseS ? F.query : F.query.toLowerCase();
+    return {
+      test: F.caseS ? s => s.indexOf(q) >= 0 : s => s.toLowerCase().indexOf(q) >= 0,
+      re: new RegExp(esc, flags + 'g')
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// kinds[i]: 0 = hidden, 1 = result line, 2 = context line.   raw[i]: 1 if the line contains the keyword.
+function filterLines(texts, C, F) {
+  const t0 = performance.now();
+  const n = texts.length;
+  const raw = new Uint8Array(n), kinds = new Uint8Array(n);
+  let matched = 0;
+  for (let i = 0; i < n; i++) if (C.test(texts[i])) { raw[i] = 1; matched++; }
+  const inc = F.mode === 'include';
+  for (let i = 0; i < n; i++) kinds[i] = inc ? raw[i] : 1 - raw[i];
+  let ctxN = 0;
+  if (inc && F.ctx > 0) {
+    for (let i = 0; i < n; i++) {
+      if (!raw[i]) continue;
+      const a = Math.max(0, i - F.ctx), b = Math.min(n - 1, i + F.ctx);
+      for (let j = a; j <= b; j++) if (!kinds[j]) { kinds[j] = 2; ctxN++; }
+    }
+  }
+  const rows = [], hits = [];
+  for (let i = 0; i < n; i++) if (kinds[i]) { rows.push(i); if (kinds[i] === 1) hits.push(i); }
+  return { n, texts, raw, kinds, rows, hits, matched, ctxN, ms: performance.now() - t0 };
+}
+
+// Maximal runs of lines for which pred(i) is true -> [[a, b], ...]
+function runsOf(n, pred) {
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    if (!pred(i)) { i++; continue; }
+    const a = i;
+    while (i < n && pred(i)) i++;
+    out.push([a, i - 1]);
+  }
+  return out;
+}
+/*END ENGINE*/
+
+/* ============================================================
+   State
+   ============================================================ */
+const KEY = 'personal-notebook-v1';
+const F = { on: true, query: 'ERROR|WARN', regex: true, caseS: false, mode: 'include', ctx: 0, fold: false, panel: true };
+const UI = { sidebar: true, minimap: true, wrap: false, lang: 'zh' };
+let notes = [], openIds = [], activeId = null, uid = 0, activeTag = null;
+let C = { empty: true }, R = null, deco = { doc: null, items: [], marks: [] };
+
+const el = {};
+['app', 'sidebar', 'noteList', 'tagList', 'tabs', 'filterbar', 'fbWrap', 'fbQuery', 'fbInclude', 'fbExclude', 'fbRegex', 'fbCase', 'fbCtx', 'fbFold', 'fbPanel', 'fbCount', 'fbClose',
+ 'editor', 'minimap', 'mmCanvas', 'results', 'resMeta', 'resBody', 'resSpacer', 'resRows', 'resClose', 'stPos', 'stDoc', 'stFilter', 'stMap', 'stWrap', 'stLang',
+ 'palette', 'palInput', 'palList', 'toast', 'btnNew', 'btnNewTab', 'btnSidebar', 'stI18n'].forEach(id => { el[id] = document.getElementById(id); });
+
+/* ============================================================
+   Sample notes
+   ============================================================ */
+function makeLog() {
+  let seed = 20261106;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const svc = ['api-gateway', 'auth', 'payments', 'search', 'worker', 'scheduler'];
+  const routes = ['/v1/orders', '/v1/users/me', '/v1/search', '/v1/cart', '/v1/invoices', '/healthz', '/v1/login'];
+  const verbs = ['GET', 'GET', 'GET', 'POST', 'PUT', 'DELETE'];
+  const warn = ['slow query detected', 'retrying upstream call', 'cache miss rate above threshold', 'connection pool near capacity', 'deprecated API version used'];
+  const err = ['upstream timeout', 'database connection reset', 'payment declined by issuer', 'failed to parse payload', 'token signature invalid', 'queue publish failed'];
+  const dbg = ['cache lookup', 'span flushed', 'feature flag evaluated', 'config reloaded'];
+  let t = Date.UTC(2026, 10, 6, 8, 0, 0);
+  const out = [];
+  for (let i = 0; i < 1200; i++) {
+    t += ri(40, 940);
+    const ts = new Date(t).toISOString().replace('T', ' ').replace('Z', '');
+    const s = pick(svc), ip = '10.0.' + ri(0, 7) + '.' + ri(2, 250), req = ri(0, 0xffffff).toString(16).padStart(6, '0');
+    const r = rnd();
+    let lvl, msg;
+    if (r < 0.06) { lvl = 'ERROR'; msg = pick(err) + ' service=' + s + ' ip=' + ip + ' req=' + req; }
+    else if (r < 0.15) { lvl = 'WARN'; msg = pick(warn) + ' latency=' + ri(300, 1900) + 'ms req=' + req; }
+    else if (r < 0.30) { lvl = 'DEBUG'; msg = pick(dbg) + ' key=' + ri(1000, 9999) + ' req=' + req; }
+    else { lvl = 'INFO'; msg = pick(verbs) + ' ' + pick(routes) + ' status=' + pick([200, 200, 200, 201, 204, 304, 404]) + ' latency=' + ri(4, 220) + 'ms ip=' + ip + ' req=' + req; }
+    out.push(ts + ' ' + lvl.padEnd(5) + ' [' + s + '] ' + msg);
+    if (lvl === 'ERROR' && rnd() < 0.35) {
+      out.push('    at Gateway.handle (gateway.js:' + ri(20, 240) + ':' + ri(3, 40) + ')');
+      out.push('    at Router.dispatch (router.js:' + ri(20, 240) + ':' + ri(3, 40) + ')');
+      out.push('    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)');
+    }
+  }
+  return out.join('\n');
+}
+const SAMPLE_README = [
+  '# PersonalNotebook  #docs #linefilter',
+  '',
+  'Sublime 風格的 Notebook，核心是 Line Filter：像 grep 一樣，即時過濾目前這份文件的每一行。',
+  'A Sublime-style notebook built around Line Filter: grep-like, instant filtering of every line in the current document.',
+  '',
+  '## 快速開始 / Quick start',
+  '',
+  '- 切到 server.log，Filter Bar 已預填 ERROR|WARN（Regex 模式）',
+  '  Open server.log. The filter bar is prefilled with ERROR|WARN (regex mode).',
+  '- Enter / Shift+Enter 在結果行之間跳轉',
+  '  Enter / Shift+Enter jumps to the next / previous result line.',
+  '- 把 Include 改成 Exclude，就會排除符合的行',
+  '  Switch Include to Exclude to drop the matching lines instead.',
+  '- 開啟「摺疊未匹配行」(Fold unmatched)，未匹配的行會在編輯器內摺疊，行號保持原樣',
+  '  Turn on Fold unmatched to collapse non-matching lines in the editor; line numbers stay unchanged.',
+  '- 結果面板可以複製、匯出成新分頁，或原地刪除行（可用 Ctrl+Z 還原）',
+  '  The results panel can copy lines, export them to a new tab, or delete lines in place (Ctrl+Z undoes it).',
+  '- 試試 Regex：^\\s+at 找出所有堆疊追蹤，latency=\\d{3,}ms 找出慢請求',
+  '  Try regex: ^\\s+at finds stack traces, latency=\\d{3,}ms finds slow requests.',
+  '- 狀態列的「EN / 中文」按鈕（或 Alt+L）可切換介面語言',
+  '  The EN / 中文 button in the status bar (or Alt+L) switches the interface language.',
+  '',
+  '## Filter 選項 / Filter options',
+  '',
+  '    Include       只保留匹配行 / keep matching lines',
+  '    Exclude       排除匹配行 / drop matching lines',
+  '    .*            Regex 模式 / regular expression mode',
+  '    Aa            大小寫相符 / match case',
+  '    Context       Include 模式下顯示前後 N 行 / show N lines around each match',
+  '    Fold          在編輯器內摺疊未匹配行 / collapse non-matching lines',
+  '',
+  '## 快捷鍵 / Shortcuts',
+  '',
+  '    Ctrl+P            跳到筆記 / go to note',
+  '    Ctrl+Shift+P      指令面板 / command palette',
+  '    Ctrl+Shift+F      開啟 Filter Bar（Alt+F、Ctrl+F 也可以）/ open the filter bar',
+  '    Alt+R / Alt+C     Regex / 大小寫 / regex / match case',
+  '    Alt+L             切換語言 / switch language',
+  '    Ctrl+D            選取下一個相同字串 / select next occurrence',
+  '    Ctrl+Shift+↑/↓    整行上移 / 下移 / move line up / down',
+  '    Ctrl+Shift+D      複製整行 / duplicate line',
+  '    Ctrl+/            切換註解 / toggle comment',
+  '    Ctrl+G            跳到行號（或在 Palette 輸入 :120）/ go to line',
+  '    Ctrl+B            收合側邊欄 / toggle sidebar',
+  '    Alt+N / Alt+W     新增 / 關閉分頁 / new / close tab',
+  '',
+  '## 架構 / Architecture',
+  '',
+  '    UI shell        側邊欄、分頁、Filter Bar、結果面板、狀態列 / sidebar, tabs, filter bar, results, status bar',
+  '    Editor core     CodeMirror 5 + sublime keymap，每個分頁一個 Doc / one Doc per tab',
+  '    Filter engine   filterLines(texts, filter) → kinds[]（純函式 / pure function）',
+  '    Decorations     行高亮、Fold、Minimap、Results / line highlight, fold, minimap, results',
+  '    Storage         localStorage（筆記與偏好 / notes and preferences）',
+  ''
+].join('\n');
+const SAMPLE_TODO = [
+  '# 待辦清單 / To-do  #todo #personal',
+  '',
+  '- [ ] 在 server.log 用 Exclude 模式過濾掉 healthz',
+  '      In server.log, use Exclude mode to hide healthz requests',
+  '- [x] 用 Regex 找出 latency 超過 1 秒的請求',
+  '      Use regex to find requests slower than one second',
+  '- [ ] 把過濾結果匯出成新分頁，貼進事故報告',
+  '      Export the filtered lines to a new tab and paste them into the incident report',
+  '- [ ] 為常用的 filter 建立收藏',
+  '      Save frequently used filters',
+  '',
+  '## 想法 / Ideas  #ideas',
+  '',
+  '- 多組 filter 以 AND / OR 組合 (combine several filters with AND / OR)',
+  '- 依時間區間過濾 log (filter logs by time range)',
+  ''
+].join('\n');
+const SAMPLE_JS = [
+  '// utils.js: 範例筆記，可以試試 ^\\s*// 或 TODO|FIXME',
+  '// utils.js: sample note. Try the regex ^\\s*// or TODO|FIXME in the filter bar.',
+  "const API = 'https://api.example.com';",
+  '',
+  '// TODO: move retry config into env',
+  'const RETRIES = 3;',
+  '',
+  'async function fetchJSON(path, opts = {}) {',
+  '  const url = API + path;',
+  "  console.log('GET', url);",
+  '  for (let i = 0; i < RETRIES; i++) {',
+  '    try {',
+  '      const res = await fetch(url, opts);',
+  '      // FIXME: 4xx should not be retried',
+  "      if (!res.ok) throw new Error('HTTP ' + res.status);",
+  '      return await res.json();',
+  '    } catch (err) {',
+  "      console.warn('retry', i + 1, err.message);",
+  '    }',
+  '  }',
+  "  throw new Error('unreachable: ' + url);",
+  '}',
+  '',
+  '// debounce keeps the filter responsive on large files',
+  'function debounce(fn, ms) {',
+  '  let t;',
+  '  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };',
+  '}',
+  '',
+  'module.exports = { fetchJSON, debounce };',
+  ''
+].join('\n');
+
+/* ============================================================
+   Notes
+   ============================================================ */
+const byId = id => notes.find(n => n.id === id);
+const activeNote = () => byId(activeId);
+const modeOf = lang => langById(lang).mode;
+
+function extractTags(n) {
+  if (n.lang !== 'markdown' && n.lang !== 'text') return [];
+  const text = n.doc.getValue(), seen = {}, out = [];
+  const re = /(?:^|[\s(])#([A-Za-z一-鿿][\w一-鿿-]*)/g;
+  let m;
+  while ((m = re.exec(text))) { const t = m[1].toLowerCase(); if (!seen[t]) { seen[t] = 1; out.push(t); } }
+  return out;
+}
+function addNote(o) {
+  const id = o.id || 'n' + (++uid);
+  const lang = o.lang || langFromName(o.name);
+  const n = { id: id, name: o.name, lang: lang, doc: new CodeMirror.Doc(o.text, modeOf(lang)), tags: [] };
+  n.tags = extractTags(n);
+  notes.push(n);
+  return n;
+}
+function seedNotes() {
+  const log = addNote({ name: 'server.log', text: makeLog() });
+  addNote({ name: 'README.md', text: SAMPLE_README });
+  addNote({ name: 'utils.js', text: SAMPLE_JS });
+  addNote({ name: 'todo.md', text: SAMPLE_TODO });
+  openIds = notes.map(n => n.id);
+  activeId = log.id;
+}
+function newNote() {
+  let k = 1;
+  while (notes.some(n => n.name === 'untitled-' + k + '.txt')) k++;
+  const n = addNote({ name: 'untitled-' + k + '.txt', text: '', lang: 'text' });
+  activate(n.id);
+}
+
+/* ---------- rendering: tabs / sidebar ---------- */
+function renderTabs() {
+  el.tabs.innerHTML = openIds.map(id => {
+    const n = byId(id);
+    return '<div class="tab' + (id === activeId ? ' active' : '') + '" data-id="' + id + '" role="tab" tabindex="0"><span class="tab-name">' + esc(n.name) +
+      '</span><button class="tab-x" data-close="' + id + '" aria-label="Close ' + esc(n.name) + '">' + icon('close') + '</button></div>';
+  }).join('');
+  const a = el.tabs.querySelector('.active');
+  if (a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function renderNotes() {
+  const list = notes.filter(n => !activeTag || n.tags.indexOf(activeTag) >= 0);
+  el.noteList.innerHTML = list.length ? list.map(n =>
+    '<li class="note' + (n.id === activeId ? ' active' : '') + '" data-id="' + n.id + '"><span class="n-name">' + esc(n.name) + '</span><span class="n-lang">' +
+    esc(langById(n.lang).id === 'markdown' ? 'md' : langById(n.lang).id.slice(0, 4)) + '</span><button class="n-del" data-del="' + n.id + '" title="' + esc(tr('tipDeleteNote')) + '" aria-label="Delete ' + esc(n.name) + '">' + icon('trash') + '</button></li>'
+  ).join('') : '<li class="side-empty">' + esc(tr('noTagNotes')) + '</li>';
+  const counts = {};
+  notes.forEach(n => n.tags.forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  const tags = Object.keys(counts).sort();
+  if (activeTag && !counts[activeTag]) activeTag = null;
+  el.tagList.innerHTML = tags.length ? tags.map(t =>
+    '<button class="tag' + (t === activeTag ? ' on' : '') + '" data-tag="' + esc(t) + '">#' + esc(t) + '<small>' + counts[t] + '</small></button>').join('')
+    : '<div class="side-empty">' + esc(tr('tagHint')) + '</div>';
+}
+function activate(id) {
+  const note = byId(id);
+  if (!note) return;
+  if (openIds.indexOf(id) < 0) openIds.push(id);
+  clearDeco();
+  activeId = id;
+  cm.swapDoc(note.doc);
+  el.stLang.value = note.lang;
+  renderTabs(); renderNotes();
+  updateStatus(); updateDocStats();
+  runFilterNow();
+  cm.focus();
+  schedulePersist();
+}
+function closeTab(id) {
+  const i = openIds.indexOf(id);
+  if (i < 0) return;
+  openIds.splice(i, 1);
+  if (!openIds.length) { newNote(); return; }
+  if (id === activeId) activate(openIds[Math.min(i, openIds.length - 1)]);
+  else { renderTabs(); schedulePersist(); }
+}
+function deleteNote(id) {
+  const n = byId(id);
+  if (!n) return;
+  const wasActive = id === activeId;
+  notes = notes.filter(x => x.id !== id);
+  openIds = openIds.filter(x => x !== id);
+  if (!notes.length) { newNote(); return; }
+  if (!openIds.length) openIds.push(notes[0].id);
+  if (wasActive) activate(openIds[0]); else { renderTabs(); renderNotes(); schedulePersist(); }
+  toast(tr('toastDeleted', { name: n.name }));
+}
+function startRename(li) {
+  const n = byId(li.dataset.id), span = li.querySelector('.n-name');
+  if (!n || !span) return;
+  const inp = document.createElement('input');
+  inp.className = 'n-rename'; inp.value = n.name;
+  span.replaceWith(inp); inp.focus(); inp.select();
+  let finished = false;
+  const done = ok => {
+    if (finished) return; finished = true;
+    const v = inp.value.trim();
+    if (ok && v) { n.name = v; n.lang = langFromName(v); if (n.id === activeId) { cm.setOption('mode', modeOf(n.lang)); el.stLang.value = n.lang; } n.tags = extractTags(n); }
+    renderNotes(); renderTabs(); schedulePersist();
+  };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') done(true); else if (e.key === 'Escape') done(false); });
+  inp.addEventListener('blur', () => done(true));
+}
+
+/* ============================================================
+   Editor
+   ============================================================ */
+const mod = isMac ? 'Cmd' : 'Ctrl';
+const cm = CodeMirror(el.editor, {
+  value: '', lineNumbers: true, theme: 'sublime', keyMap: 'sublime', indentUnit: 2, tabSize: 2, indentWithTabs: false,
+  lineWrapping: false, styleActiveLine: { nonEmpty: true }, matchBrackets: true, autoCloseBrackets: true,
+  highlightSelectionMatches: { showToken: /\w/, minChars: 2, delay: 150 }, viewportMargin: 30,
+  extraKeys: (function () {
+    const k = {
+      'Tab': c => c.somethingSelected() ? c.indentSelection('add') : c.execCommand('insertSoftTab'),
+      'Shift-Tab': 'indentLess'
+    };
+    k[mod + '-F'] = () => openFilter();
+    k[mod + '-G'] = () => openPalette(':');
+    k[mod + '-S'] = () => saveNow();
+    return k;
+  })()
+});
+
+/* ============================================================
+   Decorations (line classes, collapsed folds, text marks)
+   ============================================================ */
+function clearDeco() {
+  const d = deco;
+  if (!d.doc) return;
+  cm.operation(() => {
+    d.marks.forEach(m => m.clear());
+    d.items.forEach(it => d.doc.removeLineClass(it[0], it[1], it[2]));
+  });
+  deco = { doc: null, items: [], marks: [] };
+}
+function applyDeco(doc, r, c) {
+  const items = [], marks = [];
+  cm.operation(() => {
+    const handles = [];
+    doc.eachLine(h => { handles.push(h); });
+    const inc = F.mode === 'include';
+    const addCls = (i, where, cls) => { doc.addLineClass(handles[i], where, cls); items.push([handles[i], where, cls]); };
+    for (let i = 0; i < r.n; i++) {
+      const k = r.kinds[i];
+      if (inc) {
+        if (k === 1) { addCls(i, 'background', 'filter-hit'); addCls(i, 'gutter', 'filter-hit-gutter'); }
+        else if (k === 2) addCls(i, 'background', 'filter-ctx');
+      } else if (r.raw[i] && !F.fold) {
+        addCls(i, 'background', 'filter-excluded'); addCls(i, 'gutter', 'filter-excluded-gutter');
+      }
+    }
+    if (inc && c.re && r.matched <= 2000) {
+      for (let i = 0; i < r.n; i++) {
+        if (!r.raw[i]) continue;
+        const s = r.texts[i];
+        c.re.lastIndex = 0;
+        let m, guard = 0;
+        while ((m = c.re.exec(s)) && guard++ < 40) {
+          if (m[0] === '') { c.re.lastIndex++; continue; }
+          marks.push(doc.markText({ line: i, ch: m.index }, { line: i, ch: m.index + m[0].length }, { className: 'filter-match' }));
+        }
+      }
+    }
+    if (F.fold) {
+      runsOf(r.n, i => !r.kinds[i]).forEach(run => {
+        const a = run[0], b = run[1], len = x => r.texts[x].length;
+        if (a > 0) {
+          const w = document.createElement('span');
+          w.className = 'fold-dots'; w.textContent = '⋯ ' + (b - a + 1); w.title = (b - a + 1) + ' hidden lines';
+          marks.push(doc.markText({ line: a - 1, ch: len(a - 1) }, { line: b, ch: len(b) }, { collapsed: true, replacedWith: w }));
+        } else if (b + 1 < r.n) {
+          marks.push(doc.markText({ line: 0, ch: 0 }, { line: b + 1, ch: 0 }, { collapsed: true }));
+        } else {
+          marks.push(doc.markText({ line: 0, ch: 0 }, { line: b, ch: len(b) }, { collapsed: true }));
+        }
+      });
+    }
+  });
+  deco = { doc: doc, items: items, marks: marks };
+}
+
+/* ============================================================
+   Filter orchestration
+   ============================================================ */
+let filterTimer = 0;
+function scheduleFilter() {
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(runFilterNow, cm.lineCount() > 20000 ? 300 : 90);
+}
+function runFilterNow() {
+  clearTimeout(filterTimer);
+  const doc = cm.getDoc();
+  clearDeco();
+  R = null;
+  C = F.on ? compileFilter(F) : { empty: true };
+  el.fbWrap.classList.toggle('err', !!C.error);
+  if (F.on && !C.empty && !C.error) {
+    const texts = [];
+    doc.eachLine(h => { texts.push(h.text); });
+    R = filterLines(texts, C, F);
+    R.doc = doc;
+    applyDeco(doc, R, C);
+  }
+  renderChrome();
+  renderResults();
+  updateCount();
+  updateFilterStatus();
+  mmDirty();
+}
+function renderChrome() {
+  el.filterbar.hidden = !F.on;
+  el.results.hidden = !(F.on && F.panel);
+  el.fbInclude.classList.toggle('on', F.mode === 'include');
+  el.fbExclude.classList.toggle('on', F.mode === 'exclude');
+  el.fbRegex.classList.toggle('on', F.regex);
+  el.fbCase.classList.toggle('on', F.caseS);
+  el.fbFold.classList.toggle('on', F.fold);
+  el.fbPanel.classList.toggle('on', F.panel);
+  el.fbCtx.disabled = F.mode !== 'include';
+  el.stMap.classList.toggle('on', UI.minimap);
+  el.stWrap.classList.toggle('on', UI.wrap);
+  el.minimap.hidden = !UI.minimap;
+  el.sidebar.hidden = !UI.sidebar;
+}
+function updateCount(navIdx) {
+  el.fbCount.classList.toggle('err', !!C.error);
+  if (!F.on) { el.fbCount.textContent = ''; return; }
+  if (C.error) { el.fbCount.textContent = tr('invalidRegex'); el.fbCount.title = C.error; return; }
+  el.fbCount.title = '';
+  if (!R) { el.fbCount.textContent = ''; return; }
+  el.fbCount.textContent = (navIdx != null ? (navIdx + 1) + ' / ' : '') + tr(F.mode === 'include' ? 'cntInc' : 'cntExc', { h: fmtN(R.hits.length), n: fmtN(R.n) });
+}
+function updateFilterStatus() {
+  const s = el.stFilter;
+  s.classList.toggle('err', !!C.error);
+  if (!F.on || C.empty) { s.textContent = ''; return; }
+  if (C.error) { s.textContent = tr('stFilterErr', { e: C.error }); return; }
+  if (!R) { s.textContent = ''; return; }
+  const pct = R.n ? (R.hits.length / R.n * 100) : 0;
+  s.textContent = tr('stFilter', { h: fmtN(R.hits.length), n: fmtN(R.n), pct: pct.toFixed(1), ms: R.ms.toFixed(1) }) + (F.fold ? tr('stFolded') : '');
+}
+function navigate(dir) {
+  if (!R || !R.hits.length) return;
+  const cur = cm.getCursor().line, h = R.hits;
+  let idx;
+  if (dir > 0) { idx = h.findIndex(l => l > cur); if (idx < 0) idx = 0; }
+  else { idx = -1; for (let i = h.length - 1; i >= 0; i--) if (h[i] < cur) { idx = i; break; } if (idx < 0) idx = h.length - 1; }
+  jumpTo(h[idx], true);
+  updateCount(idx);
+}
+function jumpTo(line, keepFocus) {
+  line = Math.max(0, Math.min(cm.lineCount() - 1, line));
+  cm.setCursor({ line: line, ch: 0 });
+  const info = cm.getScrollInfo();
+  cm.scrollTo(null, cm.heightAtLine(line, 'local') - info.clientHeight / 2);
+  if (!keepFocus) cm.focus();
+}
+
+/* ---------- results panel (windowed list) ---------- */
+const RH = 20;
+function hlText(s, re) {
+  if (s.length > 300) s = s.slice(0, 300);
+  if (!re || F.mode !== 'include') return esc(s);
+  re.lastIndex = 0;
+  let out = '', last = 0, m, guard = 0;
+  while ((m = re.exec(s)) && guard++ < 40) {
+    if (m[0] === '') { re.lastIndex++; continue; }
+    out += esc(s.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  return out + esc(s.slice(last));
+}
+function renderResults() {
+  if (el.results.hidden) return;
+  if (!R) {
+    el.resMeta.textContent = '';
+    el.resSpacer.style.height = '0px';
+    el.resRows.innerHTML = '';
+    el.resBody.querySelectorAll('.res-empty').forEach(n => n.remove());
+    el.resBody.insertAdjacentHTML('beforeend', '<div class="res-empty">' + esc(C.error ? tr('resBadRegex', { e: C.error }) : tr('resHint')) + '</div>');
+    return;
+  }
+  el.resBody.querySelectorAll('.res-empty').forEach(n => n.remove());
+  el.resMeta.textContent = tr(R.ctxN ? 'resMetaCtx' : 'resMeta', { h: fmtN(R.hits.length), c: fmtN(R.ctxN), n: fmtN(R.n), ms: R.ms.toFixed(1) });
+  if (!R.rows.length) {
+    el.resSpacer.style.height = '0px';
+    el.resRows.innerHTML = '';
+    el.resBody.insertAdjacentHTML('beforeend', '<div class="res-empty">' + esc(tr('resNone')) + '</div>');
+    return;
+  }
+  el.resSpacer.style.height = R.rows.length * RH + 'px';
+  paintRows();
+}
+let rowsRaf = 0;
+function paintRows() {
+  if (!R || el.results.hidden) return;
+  const top = el.resBody.scrollTop, h = el.resBody.clientHeight || 200;
+  const start = Math.max(0, Math.floor(top / RH) - 8), end = Math.min(R.rows.length, Math.ceil((top + h) / RH) + 8);
+  let html = '';
+  for (let i = start; i < end; i++) {
+    const ln = R.rows[i];
+    html += '<div class="res-row' + (R.kinds[ln] === 2 ? ' ctx' : '') + '" style="top:' + (i * RH) + 'px" data-line="' + ln + '"><span class="rn">' + (ln + 1) + '</span><span class="rt">' + hlText(R.texts[ln], C.re) + '</span></div>';
+  }
+  el.resRows.innerHTML = html;
+}
+el.resBody.addEventListener('scroll', () => { if (!rowsRaf) rowsRaf = requestAnimationFrame(() => { rowsRaf = 0; paintRows(); }); });
+el.resBody.addEventListener('click', e => {
+  const row = e.target.closest('.res-row');
+  if (row) jumpTo(+row.dataset.line);
+});
+
+/* ---------- actions on filtered lines ---------- */
+function ensureFilter() {
+  if (!F.on || C.empty) { openFilter(); toast(tr('toastEnterFilter')); return false; }
+  if (C.error) { toast(tr('toastBadRegex')); return false; }
+  runFilterNow();
+  return !!R;
+}
+function resultText() {
+  const out = [];
+  for (let i = 0; i < R.rows.length; i++) out.push(R.texts[R.rows[i]]);
+  return out.join('\n');
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy'); ta.remove();
+      return ok;
+    } catch (e2) { return false; }
+  }
+}
+async function actCopy() {
+  if (!ensureFilter()) return;
+  if (!R.rows.length) { toast(tr('toastNoCopy')); return; }
+  const ok = await copyText(resultText());
+  toast(ok ? tr('toastCopied', { n: fmtN(R.rows.length) }) : tr('toastCopyBlocked'));
+}
+function actExport() {
+  if (!ensureFilter()) return;
+  if (!R.rows.length) { toast(tr('toastNoExport')); return; }
+  const src = activeNote();
+  let name = 'filtered-' + src.name, k = 2;
+  while (notes.some(n => n.name === name)) { name = 'filtered-' + k + '-' + src.name; k++; }
+  const n = addNote({ name: name, text: resultText(), lang: src.lang });
+  activate(n.id);
+  toast(tr('toastExported', { n: fmtN(R.rows.length) }));
+}
+function actDelete(which) {
+  if (!ensureFilter()) return;
+  const want = which === 'matched' ? 1 : 0;
+  const doc = cm.getDoc(), r = R;
+  const runs = runsOf(r.n, i => r.raw[i] === want);
+  if (!runs.length) { toast(tr('toastNothingDel')); return; }
+  let count = 0;
+  clearDeco();
+  cm.operation(() => {
+    for (let k = runs.length - 1; k >= 0; k--) {
+      const a = runs[k][0], b = runs[k][1];
+      count += b - a + 1;
+      if (b < r.n - 1) doc.replaceRange('', { line: a, ch: 0 }, { line: b + 1, ch: 0 }, '+filterDelete');
+      else if (a > 0) doc.replaceRange('', { line: a - 1, ch: doc.getLine(a - 1).length }, { line: b, ch: doc.getLine(b).length }, '+filterDelete');
+      else doc.replaceRange('', { line: 0, ch: 0 }, { line: b, ch: doc.getLine(b).length }, '+filterDelete');
+    }
+  });
+  runFilterNow();
+  toast(tr(which === 'matched' ? 'toastDelM' : 'toastDelU', { n: fmtN(count), k: isMac ? 'Cmd' : 'Ctrl' }));
+}
+
+/* ---------- filter bar wiring ---------- */
+function openFilter() {
+  F.on = true;
+  runFilterNow();
+  el.fbQuery.focus();
+  el.fbQuery.select();
+  persistSoon();
+}
+function closeFilter() { F.on = false; runFilterNow(); cm.focus(); persistSoon(); }
+function setF(patch) { Object.assign(F, patch); runFilterNow(); persistSoon(); }
+el.fbQuery.addEventListener('input', () => { F.query = el.fbQuery.value; scheduleFilter(); persistSoon(); });
+el.fbQuery.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); navigate(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { e.preventDefault(); cm.focus(); }
+});
+el.fbInclude.addEventListener('click', () => setF({ mode: 'include' }));
+el.fbExclude.addEventListener('click', () => setF({ mode: 'exclude' }));
+el.fbRegex.addEventListener('click', () => setF({ regex: !F.regex }));
+el.fbCase.addEventListener('click', () => setF({ caseS: !F.caseS }));
+el.fbFold.addEventListener('click', () => setF({ fold: !F.fold }));
+el.fbPanel.addEventListener('click', () => setF({ panel: !F.panel }));
+el.fbCtx.addEventListener('change', () => setF({ ctx: Math.max(0, Math.min(9, parseInt(el.fbCtx.value, 10) || 0)) }));
+el.fbClose.addEventListener('click', closeFilter);
+el.resClose.addEventListener('click', () => setF({ panel: false }));
+document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+  const a = b.dataset.act;
+  if (a === 'copy') actCopy(); else if (a === 'export') actExport();
+  else if (a === 'delmatch') actDelete('matched'); else if (a === 'delunmatch') actDelete('unmatched');
+}));
+
+/* ============================================================
+   Minimap
+   ============================================================ */
+const MM = { x: el.mmCanvas.getContext('2d'), off: document.createElement('canvas'), dirty: true, raf: 0, ppr: 3, rows: null, rowOf: null, total: 0, w: 0, h: 0, dpr: 1 };
+function mmResize() {
+  const r = el.minimap.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  MM.dpr = Math.min(2, window.devicePixelRatio || 1);
+  MM.w = r.width; MM.h = r.height;
+  [el.mmCanvas, MM.off].forEach(c => { c.width = Math.round(r.width * MM.dpr); c.height = Math.round(r.height * MM.dpr); });
+  mmDirty();
+}
+function mmDirty() { MM.dirty = true; mmSchedule(); }
+function mmSchedule() { if (!MM.raf) MM.raf = requestAnimationFrame(() => { MM.raf = 0; mmPaint(); }); }
+function mmBuild() {
+  const doc = cm.getDoc(), n = doc.lineCount();
+  const live = F.on && R && R.doc === doc && R.n === n;
+  const fold = live && F.fold;
+  const rows = fold ? R.rows : null;
+  MM.rows = rows; MM.total = rows ? rows.length : n;
+  MM.ppr = MM.total ? Math.min(3, MM.h / MM.total) : 3;
+  if (rows) { MM.rowOf = new Int32Array(n).fill(-1); rows.forEach((l, i) => { MM.rowOf[l] = i; }); } else MM.rowOf = null;
+  const texts = [];
+  doc.eachLine(h => { texts.push(h.text); });
+  const x = MM.off.getContext('2d');
+  x.setTransform(MM.dpr, 0, 0, MM.dpr, 0, 0);
+  x.clearRect(0, 0, MM.w, MM.h);
+  const ppr = MM.ppr, bh = ppr >= 2 ? ppr - 1 : Math.max(ppr, 0.6), inc = F.mode === 'include';
+  let last = '';
+  for (let r = 0; r < MM.total; r++) {
+    const li = rows ? rows[r] : r, s = texts[li];
+    const ind = s.search(/\S/);
+    if (ind < 0) continue;
+    let col = 'rgba(168,168,156,.42)';
+    if (live) {
+      if (inc) { if (R.kinds[li] === 1) col = '#fd971f'; else if (R.kinds[li] === 2) col = 'rgba(253,151,31,.4)'; }
+      else if (R.raw[li]) col = 'rgba(249,38,114,.5)';
+    }
+    if (col !== last) { x.fillStyle = col; last = col; }
+    const i0 = Math.min(ind, 20), len = Math.min(s.length, 120);
+    x.fillRect(5 + i0 * 0.6, r * ppr, Math.max(1, (len - i0) * 0.6), bh);
+  }
+}
+function mmPaint() {
+  if (el.minimap.hidden || !MM.w) return;
+  if (MM.dirty) { mmBuild(); MM.dirty = false; }
+  const x = MM.x;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, el.mmCanvas.width, el.mmCanvas.height);
+  x.drawImage(MM.off, 0, 0);
+  x.setTransform(MM.dpr, 0, 0, MM.dpr, 0, 0);
+  const info = cm.getScrollInfo();
+  const tl = cm.lineAtHeight(info.top, 'local'), bl = cm.lineAtHeight(info.top + info.clientHeight, 'local');
+  const rt = MM.rowOf ? Math.max(0, MM.rowOf[tl]) : tl, rb = MM.rowOf ? Math.max(0, MM.rowOf[bl]) : bl;
+  const y0 = Math.min(MM.h - 4, rt * MM.ppr), y1 = Math.max(y0 + 4, Math.min(MM.h, (rb + 1) * MM.ppr));
+  x.fillStyle = 'rgba(255,255,255,.08)';
+  x.fillRect(0, y0, MM.w, y1 - y0);
+  x.strokeStyle = 'rgba(255,255,255,.22)';
+  x.lineWidth = 1;
+  x.strokeRect(0.5, y0 + 0.5, MM.w - 1, Math.max(1, y1 - y0 - 1));
+}
+function mmSeek(e) {
+  if (!MM.total) return;
+  const r = el.minimap.getBoundingClientRect();
+  let row = Math.floor((e.clientY - r.top) / MM.ppr);
+  row = Math.max(0, Math.min(MM.total - 1, row));
+  const line = MM.rows ? MM.rows[row] : row, info = cm.getScrollInfo();
+  cm.scrollTo(null, cm.heightAtLine(line, 'local') - info.clientHeight / 2);
+}
+el.minimap.addEventListener('pointerdown', e => { e.preventDefault(); try { el.minimap.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } mmSeek(e); });
+el.minimap.addEventListener('pointermove', e => { if (e.buttons) mmSeek(e); });
+cm.on('scroll', mmSchedule);
+
+/* ============================================================
+   Status bar
+   ============================================================ */
+function updateStatus() {
+  const c = cm.getCursor(), sels = cm.listSelections();
+  let str = tr('stPos', { l: fmtN(c.line + 1), c: fmtN(c.ch + 1) });
+  if (sels.length > 1) str += tr('stSels', { n: sels.length });
+  else if (cm.somethingSelected()) str += tr('stSelected', { n: fmtN(cm.getSelection().length) });
+  el.stPos.textContent = str;
+}
+function updateDocStats() {
+  const doc = cm.getDoc();
+  let chars = 0;
+  doc.eachLine(h => { chars += h.text.length + 1; });
+  el.stDoc.textContent = tr('stDoc', { c: fmtN(Math.max(0, chars - 1)), l: fmtN(doc.lineCount()) });
+}
+cm.on('cursorActivity', updateStatus);
+let tagTimer = 0;
+cm.on('change', () => {
+  scheduleFilter(); mmDirty(); updateDocStats(); schedulePersist();
+  clearTimeout(tagTimer);
+  tagTimer = setTimeout(() => { const n = activeNote(); if (n) { n.tags = extractTags(n); renderNotes(); } }, 500);
+});
+el.stLang.innerHTML = LANGS.map(l => '<option value="' + l.id + '">' + l.label + '</option>').join('');
+el.stLang.addEventListener('change', () => { const n = activeNote(); n.lang = el.stLang.value; cm.setOption('mode', modeOf(n.lang)); n.tags = extractTags(n); renderNotes(); schedulePersist(); });
+el.stMap.addEventListener('click', toggleMinimap);
+el.stWrap.addEventListener('click', toggleWrap);
+el.stI18n.addEventListener('click', toggleLang);
+
+/* ============================================================
+   View toggles, toast, persistence
+   ============================================================ */
+function refreshLater() { requestAnimationFrame(() => { cm.refresh(); mmResize(); }); }
+function toggleSidebar() { UI.sidebar = !UI.sidebar; renderChrome(); refreshLater(); persistSoon(); }
+function toggleMinimap() { UI.minimap = !UI.minimap; renderChrome(); refreshLater(); persistSoon(); }
+function toggleWrap() { UI.wrap = !UI.wrap; cm.setOption('lineWrapping', UI.wrap); renderChrome(); mmDirty(); persistSoon(); }
+let toastTimer = 0;
+function toast(msg) {
+  el.toast.textContent = msg; el.toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2600);
+}
+function persist() {
+  store.set(KEY, {
+    v: 1, uid: uid, open: openIds, active: activeId, F: F, UI: UI,
+    notes: notes.map(n => ({ id: n.id, name: n.name, lang: n.lang, text: n.doc.getValue() }))
+  });
+}
+function saveNow() { persist(); toast(tr('toastSaved')); }
+let persistTimer = 0;
+function schedulePersist() { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 800); }
+function persistSoon() { schedulePersist(); }
+window.addEventListener('beforeunload', persist);
+
+/* ============================================================
+   Command palette  (Ctrl+P notes · Ctrl+Shift+P commands · Ctrl+G :line)
+   ============================================================ */
+const COMMANDS = [
+  { label: 'File: New Note', key: 'Alt+N', run: newNote },
+  { label: 'File: Close Tab', key: 'Alt+W', run: () => closeTab(activeId) },
+  { label: 'File: Save', key: 'Mod+S', run: saveNow },
+  { label: 'View: Toggle Sidebar', key: 'Mod+B', run: toggleSidebar },
+  { label: 'View: Toggle Minimap', run: toggleMinimap },
+  { label: 'View: Toggle Word Wrap', run: toggleWrap },
+  { label: 'View: Switch Language (中文 / English)', key: 'Alt+L', run: toggleLang },
+  { label: 'Filter: Open Filter Bar', key: 'Mod+Shift+F', run: openFilter },
+  { label: 'Filter: Close and Clear Decorations', run: closeFilter },
+  { label: 'Filter: Include Mode (keep matching lines)', run: () => { F.on = true; setF({ mode: 'include' }); } },
+  { label: 'Filter: Exclude Mode (drop matching lines)', run: () => { F.on = true; setF({ mode: 'exclude' }); } },
+  { label: 'Filter: Toggle Regex', key: 'Alt+R', run: () => { F.on = true; setF({ regex: !F.regex }); } },
+  { label: 'Filter: Toggle Case Sensitive', key: 'Alt+C', run: () => { F.on = true; setF({ caseS: !F.caseS }); } },
+  { label: 'Filter: Toggle Fold Unmatched Lines', run: () => { F.on = true; setF({ fold: !F.fold }); } },
+  { label: 'Filter: Toggle Results Panel', run: () => { F.on = true; setF({ panel: !F.panel }); } },
+  { label: 'Filter: Copy Filtered Lines', run: actCopy },
+  { label: 'Filter: Export Filtered Lines to New Tab', run: actExport },
+  { label: 'Filter: Delete Matched Lines', run: () => actDelete('matched') },
+  { label: 'Filter: Delete Unmatched Lines', run: () => actDelete('unmatched') }
+].concat(LANGS.map(l => ({ label: 'Syntax: ' + l.label, run: () => { el.stLang.value = l.id; el.stLang.dispatchEvent(new Event('change')); } })));
+
+function commandList() {
+  return COMMANDS.map(c => ({ label: lang === 'zh' ? cmdZh(c.label) : c.label, key: c.key, run: c.run }));
+}
+function fuzzy(q, s) {
+  if (!q) return { score: 0, idx: [] };
+  const ql = q.toLowerCase(), sl = s.toLowerCase();
+  let qi = 0, score = 0, prev = -2;
+  const idx = [];
+  for (let i = 0; i < sl.length && qi < ql.length; i++) {
+    if (sl[i] === ql[qi]) {
+      idx.push(i);
+      score += i === prev + 1 ? 5 : 1;
+      if (i === 0 || ' -_./:'.indexOf(sl[i - 1]) >= 0) score += 3;
+      prev = i; qi++;
+    }
+  }
+  return qi === ql.length ? { score: score, idx: idx } : null;
+}
+function hlLabel(s, idx) {
+  if (!idx.length) return esc(s);
+  const set = {};
+  idx.forEach(i => { set[i] = 1; });
+  let out = '';
+  for (let i = 0; i < s.length; i++) out += set[i] ? '<b>' + esc(s[i]) + '</b>' : esc(s[i]);
+  return out;
+}
+const PAL = { open: false, items: [], sel: 0 };
+function palBuild(q) {
+  if (q.charAt(0) === ':') {
+    const num = parseInt(q.slice(1), 10), max = cm.lineCount();
+    if (num >= 1) { const ln = Math.min(num, max); return [{ label: tr('goLine', { n: fmtN(ln) }) + (num > max ? tr('lastLine') : ''), run: () => jumpTo(ln - 1) }]; }
+    return [];
+  }
+  if (q.charAt(0) === '>') {
+    const s = q.slice(1).trim();
+    return commandList().map(c => ({ c: c, f: fuzzy(s, c.label) })).filter(x => x.f)
+      .sort((a, b) => b.f.score - a.f.score)
+      .map(x => ({ label: x.c.label, idx: x.f.idx, hint: x.c.key ? kb(x.c.key) : '', run: x.c.run }));
+  }
+  return notes.map(n => ({ n: n, f: fuzzy(q.trim(), n.name) })).filter(x => x.f)
+    .sort((a, b) => b.f.score - a.f.score)
+    .map(x => ({ label: x.n.name, idx: x.f.idx, hint: langById(x.n.lang).label, run: () => activate(x.n.id) }));
+}
+function palRender() {
+  const q = el.palInput.value;
+  PAL.items = palBuild(q);
+  PAL.sel = Math.min(PAL.sel, Math.max(0, PAL.items.length - 1));
+  if (!PAL.items.length) {
+    el.palList.innerHTML = '<li class="pal-empty">' + esc(q.charAt(0) === ':' ? tr('palLineHint') : tr('palEmpty')) + '</li>';
+    return;
+  }
+  el.palList.innerHTML = PAL.items.slice(0, 60).map((it, i) =>
+    '<li class="' + (i === PAL.sel ? 'sel' : '') + '" data-i="' + i + '" role="option"><span class="lbl">' + hlLabel(it.label, it.idx || []) + '</span><span class="hint">' + esc(it.hint || '') + '</span></li>').join('');
+  const s = el.palList.querySelector('.sel');
+  if (s) s.scrollIntoView({ block: 'nearest' });
+}
+function openPalette(prefix) {
+  PAL.open = true; PAL.sel = 0;
+  el.palette.hidden = false;
+  el.palInput.value = prefix || '';
+  palRender();
+  el.palInput.focus();
+}
+function closePalette() { PAL.open = false; el.palette.hidden = true; }
+function palRun(i) {
+  const it = PAL.items[i];
+  if (!it) return;
+  closePalette();
+  cm.focus();
+  it.run();
+}
+el.palInput.addEventListener('input', () => { PAL.sel = 0; palRender(); });
+el.palInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); PAL.sel = Math.min(PAL.items.length - 1, PAL.sel + 1); palRender(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); PAL.sel = Math.max(0, PAL.sel - 1); palRender(); }
+  else if (e.key === 'Enter') { e.preventDefault(); palRun(PAL.sel); }
+  else if (e.key === 'Escape') { e.preventDefault(); closePalette(); cm.focus(); }
+});
+el.palList.addEventListener('click', e => { const li = e.target.closest('li[data-i]'); if (li) palRun(+li.dataset.i); });
+el.palette.addEventListener('mousedown', e => { if (e.target === el.palette) { closePalette(); cm.focus(); } });
+
+/* ============================================================
+   Global keys + sidebar/tab events
+   ============================================================ */
+window.addEventListener('keydown', e => {
+  const m = e.ctrlKey || e.metaKey, c = e.code;
+  const stop = fn => { e.preventDefault(); e.stopPropagation(); fn(); };
+  if (m && !e.altKey && c === 'KeyP') return stop(() => openPalette(e.shiftKey ? '>' : ''));
+  if (m && !e.altKey && c === 'KeyF') return stop(openFilter);
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyF') return stop(openFilter);
+  if (m && !e.altKey && !e.shiftKey && c === 'KeyG') return stop(() => openPalette(':'));
+  if (m && !e.altKey && !e.shiftKey && c === 'KeyB') return stop(toggleSidebar);
+  if (m && !e.altKey && !e.shiftKey && c === 'KeyS') return stop(saveNow);
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyN') return stop(newNote);
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyW') return stop(() => closeTab(activeId));
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyR' && F.on) return stop(() => setF({ regex: !F.regex }));
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyC' && F.on) return stop(() => setF({ caseS: !F.caseS }));
+  if (e.altKey && !m && !e.shiftKey && c === 'KeyL') return stop(toggleLang);
+  if (e.key === 'Escape' && PAL.open) return stop(() => { closePalette(); cm.focus(); });
+}, true);
+
+el.tabs.addEventListener('click', e => {
+  const x = e.target.closest('[data-close]');
+  if (x) { closeTab(x.dataset.close); return; }
+  const t = e.target.closest('.tab');
+  if (t && t.dataset.id !== activeId) activate(t.dataset.id);
+});
+el.tabs.addEventListener('auxclick', e => { if (e.button === 1) { const t = e.target.closest('.tab'); if (t) { e.preventDefault(); closeTab(t.dataset.id); } } });
+el.tabs.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = e.target.closest('.tab'); if (t) activate(t.dataset.id); } });
+el.noteList.addEventListener('click', e => {
+  const d = e.target.closest('[data-del]');
+  if (d) {
+    const li = d.closest('.note');
+    if (li.classList.contains('arm')) deleteNote(d.dataset.del);
+    else { li.classList.add('arm'); toast(tr('toastArm')); setTimeout(() => li.classList.remove('arm'), 2600); }
+    return;
+  }
+  const li = e.target.closest('.note');
+  if (li && li.dataset.id) { activate(li.dataset.id); if (window.matchMedia('(max-width: 720px)').matches) { UI.sidebar = false; renderChrome(); refreshLater(); } }
+});
+el.noteList.addEventListener('dblclick', e => { const li = e.target.closest('.note'); if (li && e.target.closest('.n-name')) startRename(li); });
+el.tagList.addEventListener('click', e => { const t = e.target.closest('[data-tag]'); if (t) { activeTag = activeTag === t.dataset.tag ? null : t.dataset.tag; renderNotes(); } });
+el.btnNew.addEventListener('click', newNote);
+el.btnNewTab.addEventListener('click', newNote);
+el.btnSidebar.addEventListener('click', toggleSidebar);
+
+if (window.ResizeObserver) new ResizeObserver(() => { cm.refresh(); mmResize(); }).observe(el.editor);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cm.refresh(); mmDirty(); });
+
+/* ============================================================
+   Boot
+   ============================================================ */
+(function boot() {
+  const saved = store.get(KEY);
+  let restored = false;
+  if (saved && Array.isArray(saved.notes) && saved.notes.length) {
+    try {
+      saved.notes.forEach(n => { if (n && typeof n.name === 'string' && typeof n.text === 'string') addNote({ id: String(n.id), name: n.name, text: n.text, lang: langById(n.lang).id }); });
+      uid = Math.max(uid, +saved.uid || 0);
+      notes.forEach(n => { const k = parseInt(String(n.id).replace(/\D/g, ''), 10); if (k > uid) uid = k; });
+      openIds = (saved.open || []).filter(id => byId(id));
+      activeId = byId(saved.active) ? saved.active : null;
+      if (saved.F && typeof saved.F === 'object') {
+        if (typeof saved.F.query === 'string') F.query = saved.F.query;
+        ['on', 'regex', 'caseS', 'fold', 'panel'].forEach(k => { if (typeof saved.F[k] === 'boolean') F[k] = saved.F[k]; });
+        if (saved.F.mode === 'include' || saved.F.mode === 'exclude') F.mode = saved.F.mode;
+        if (typeof saved.F.ctx === 'number') F.ctx = Math.max(0, Math.min(9, saved.F.ctx | 0));
+      }
+      if (saved.UI) ['sidebar', 'minimap', 'wrap'].forEach(k => { if (typeof saved.UI[k] === 'boolean') UI[k] = saved.UI[k]; });
+      if (saved.UI && (saved.UI.lang === 'zh' || saved.UI.lang === 'en')) UI.lang = saved.UI.lang;
+      restored = notes.length > 0;
+      // Upgrade an untouched README saved by an older version to the bilingual one.
+      const rd = notes.find(n => n.name === 'README.md');
+      if (rd) {
+        const txt = rd.doc.getValue();
+        if (txt.indexOf('Quick start') < 0 && txt.indexOf('# PersonalNotebook  #docs #linefilter') === 0) { rd.doc.setValue(SAMPLE_README); rd.tags = extractTags(rd); }
+      }
+    } catch (err) { restored = false; }
+  }
+  if (!restored) { notes = []; openIds = []; seedNotes(); }
+  if (!openIds.length) openIds = notes.map(n => n.id);
+  if (!activeId) activeId = openIds[0];
+  if (!restored && window.matchMedia('(max-width: 720px)').matches) UI.sidebar = false;
+  el.fbQuery.value = F.query;
+  el.fbCtx.value = F.ctx;
+  cm.setOption('lineWrapping', UI.wrap);
+  lang = UI.lang;
+  activate(activeId);
+  renderChrome();
+  applyI18n();
+  refreshLater();
+})();
+})();
+</script>
