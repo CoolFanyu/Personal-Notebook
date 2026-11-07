@@ -247,6 +247,16 @@ span.CodeMirror-selectedtext { background: none; }
 .filter-match { background: rgba(253, 151, 31, .38); color: #fff; border-radius: 2px; }
 .fold-dots { display: inline-block; margin-left: 10px; padding: 0 7px; font: 11px/1.5 var(--font-mono); color: var(--fg-mute); background: #34352d; border: 1px solid var(--line); border-radius: 9px; vertical-align: 1px; cursor: default; }
 
+/* ---------- file I/O ---------- */
+.tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); flex: none; }
+.drop-hint { position: absolute; inset: 8px; z-index: 70; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--orange); border-radius: 6px; background: rgba(39, 40, 34, .84); color: var(--orange); font-size: 15px; font-weight: 600; pointer-events: none; }
+.drop-hint[hidden] { display: none; }
+.dlg-title { padding: 12px 14px 8px; font-size: 12.5px; color: var(--fg-dim); }
+.dlg input { border-bottom: 0; border-top: 1px solid var(--line); }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.act.primary { background: var(--orange); color: #1b1c18; font-weight: 600; }
+.act.primary:hover { background: #ffab40; color: #1b1c18; border-color: transparent; }
+
 /* ---------- narrow screens ---------- */
 @media (max-width: 720px) {
   .sidebar { position: absolute; grid-area: auto; z-index: 30; top: 0; bottom: 0; left: 0; width: min(260px, 82%); box-shadow: 8px 0 30px rgba(0, 0, 0, .5); }
@@ -271,6 +281,10 @@ span.CodeMirror-selectedtext { background: none; }
       <button class="icon-btn" id="btnSidebar" data-i18n-title="tipSidebar" aria-label="Toggle sidebar" data-icon="sidebar"></button>
       <div class="tabs" id="tabs" role="tablist"></div>
       <button class="icon-btn" id="btnNewTab" data-i18n-title="tipNewTab" aria-label="New tab" data-icon="plus"></button>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="btnOpen" data-i18n-title="tipOpen" aria-label="Open file" data-icon="open"></button>
+      <button class="icon-btn" id="btnSave" data-i18n-title="tipSave" aria-label="Save" data-icon="save"></button>
+      <button class="icon-btn" id="btnSaveAs" data-i18n-title="tipSaveAs" aria-label="Save as" data-icon="saveas"></button>
     </div>
 
     <div class="filterbar" id="filterbar">
@@ -319,6 +333,18 @@ span.CodeMirror-selectedtext { background: none; }
     <select id="stLang" aria-label="Syntax"></select>
   </footer>
 
+  <input type="file" id="fileInput" multiple hidden>
+  <div class="drop-hint" id="dropHint" hidden data-i18n="dropHint">Drop files to open them</div>
+  <div class="pal-backdrop" id="nameDlg" hidden>
+    <div class="pal dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+      <div class="dlg-title" id="dlgTitle"></div>
+      <input id="dlgInput" type="text" spellcheck="false" autocomplete="off" aria-label="File name">
+      <div class="dlg-actions">
+        <button class="act" id="dlgCancel" data-i18n="cancel">Cancel</button>
+        <button class="act primary" id="dlgOk" data-i18n="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
   <div class="pal-backdrop" id="palette" hidden>
     <div class="pal" role="dialog" aria-label="Command palette">
       <input id="palInput" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="phPalette">
@@ -402,7 +428,18 @@ const I18N = {
     resBadRegex: '正規表示式無效：{e}', resNone: '目前的過濾條件沒有可顯示的行。',
     stPos: '第 {l} 行，第 {c} 欄', stSels: ' · {n} 個游標', stSelected: ' · 已選取 {n} 字元',
     stDoc: '{c} 字元 · {l} 行 · UTF-8',
-    palEmpty: '沒有符合的項目', palLineHint: '輸入行號，例如 :120', goLine: '跳到第 {n} 行', lastLine: '（最後一行）'
+    palEmpty: '沒有符合的項目', palLineHint: '輸入行號，例如 :120', goLine: '跳到第 {n} 行', lastLine: '（最後一行）',
+    tipOpen: '開啟檔案 (Mod+O)', tipSave: '儲存 (Mod+S)：可行時直接寫回原檔', tipSaveAs: '另存新檔… (Mod+Shift+S)',
+    dropHint: '拖放檔案即可開啟', cancel: '取消', saveBtn: '儲存', dlgSaveAs: '另存新檔，請輸入檔名', tipDirty: '尚未儲存到檔案的變更',
+    toastLoaded: '已開啟 {n} 個檔案', toastAlreadyOpen: '{name} 已經開啟', toastTooBig: '{name} 超過 20 MB，已略過',
+    toastBinary: '{name} 看起來不是文字檔，已略過', toastReadFail: '無法讀取 {name}',
+    toastBigNote: '{name} 檔案較大，不會保留在瀏覽器儲存空間，請記得儲存成檔案。',
+    toastSavedFile: '已儲存 {name}', toastSavedAs: '已另存為 {name}', toastWriteFail: '無法寫入檔案，請改用「另存新檔」。',
+    toastEmptyNote: '這份筆記是空的，沒有可儲存的內容',
+    toastDownloaded: '已將副本儲存為 {name}。此環境無法覆寫原檔。',
+    toastDownloadedExt: '已將副本儲存為 {name}。此環境只允許 .txt、.md、.json、.csv、.html、.svg，因此加上了 .txt。',
+    toastDownloadedPlain: '已下載 {name}', toastDownloadFail: '下載沒有完成',
+    toastNoSave: '此環境無法儲存檔案。請改用獨立的 HTML 檔，並以 Chrome 或 Edge 開啟。'
   },
   en: {
     notes: 'NOTES', tags: 'TAGS',
@@ -435,11 +472,22 @@ const I18N = {
     resBadRegex: 'The regular expression is not valid: {e}', resNone: 'No lines to show for this filter.',
     stPos: 'Ln {l}, Col {c}', stSels: ' · {n} selections', stSelected: ' · {n} selected',
     stDoc: '{c} chars · {l} lines · UTF-8',
-    palEmpty: 'No matches', palLineHint: 'Type a line number, for example :120', goLine: 'Go to line {n}', lastLine: ' (last line)'
+    palEmpty: 'No matches', palLineHint: 'Type a line number, for example :120', goLine: 'Go to line {n}', lastLine: ' (last line)',
+    tipOpen: 'Open file (Mod+O)', tipSave: 'Save (Mod+S): writes back to the original file when possible', tipSaveAs: 'Save As… (Mod+Shift+S)',
+    dropHint: 'Drop files to open them', cancel: 'Cancel', saveBtn: 'Save', dlgSaveAs: 'Save as: enter a file name', tipDirty: 'Changes not saved to a file',
+    toastLoaded: 'Opened {n} file(s)', toastAlreadyOpen: '{name} is already open', toastTooBig: '{name} is larger than 20 MB and was skipped',
+    toastBinary: '{name} does not look like a text file and was skipped', toastReadFail: 'Could not read {name}',
+    toastBigNote: '{name} is large, so it is not kept in browser storage. Remember to save it to a file.',
+    toastSavedFile: 'Saved {name}', toastSavedAs: 'Saved as {name}', toastWriteFail: 'Could not write to the file. Try Save As.',
+    toastEmptyNote: 'This note is empty, so there is nothing to save',
+    toastDownloaded: 'Saved a copy as {name}. This view cannot overwrite the original file.',
+    toastDownloadedExt: 'Saved a copy as {name}. Downloads here are limited to .txt, .md, .json, .csv, .html and .svg, so .txt was added.',
+    toastDownloadedPlain: 'Downloaded {name}', toastDownloadFail: 'The download was not saved',
+    toastNoSave: 'Saving files is not available in this view. Open the standalone HTML file in Chrome or Edge.'
   }
 };
 const CMD_ZH = {
-  'File: New Note': '檔案：新增筆記', 'File: Close Tab': '檔案：關閉分頁', 'File: Save': '檔案：儲存',
+  'File: New Note': '檔案：新增筆記', 'File: Close Tab': '檔案：關閉分頁', 'File: Open File…': '檔案：開啟檔案…', 'File: Save': '檔案：儲存', 'File: Save As…': '檔案：另存新檔…',
   'View: Toggle Sidebar': '檢視：切換側邊欄', 'View: Toggle Minimap': '檢視：切換 Minimap', 'View: Toggle Word Wrap': '檢視：切換自動換行',
   'View: Switch Language (中文 / English)': '檢視：切換語言 (中文 / English)',
   'Filter: Open Filter Bar': '過濾：開啟過濾列', 'Filter: Close and Clear Decorations': '過濾：關閉並清除標示',
@@ -482,7 +530,10 @@ const ICONS = {
   export: '<path d="M9 2.5h4.5V7M13.5 2.5L7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/>',
   trash: '<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>',
   filter: '<path d="M2 3h12l-4.5 5.5v4.5l-3-1.5V8.5z"/>',
-  sidebar: '<rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M6 3v10"/>'
+  sidebar: '<rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M6 3v10"/>',
+  open: '<path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>',
+  save: '<path d="M3 2.5h8l2 2V13a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 3 13zM5.5 2.5v3h4v-3M5.5 13.5v-4h5v4"/>',
+  saveas: '<path d="M3 2.5h6.5l2.5 2.5v2.5M3 2.5V13a.5.5 0 0 0 .5.5H7.5M5.5 2.5v3h3.5M9.5 13.5l.4-1.6 3.1-3.1 1.2 1.2-3.1 3.1z"/>'
 };
 const icon = n => '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">' + ICONS[n] + '</svg>';
 document.querySelectorAll('[data-icon]').forEach(b => b.insertAdjacentHTML('afterbegin', icon(b.dataset.icon)));
@@ -603,7 +654,7 @@ let C = { empty: true }, R = null, deco = { doc: null, items: [], marks: [] };
 const el = {};
 ['app', 'sidebar', 'noteList', 'tagList', 'tabs', 'filterbar', 'fbWrap', 'fbQuery', 'fbInclude', 'fbExclude', 'fbRegex', 'fbCase', 'fbCtx', 'fbFold', 'fbPanel', 'fbCount', 'fbClose',
  'editor', 'minimap', 'mmCanvas', 'results', 'resMeta', 'resBody', 'resSpacer', 'resRows', 'resClose', 'stPos', 'stDoc', 'stFilter', 'stMap', 'stWrap', 'stLang',
- 'palette', 'palInput', 'palList', 'toast', 'btnNew', 'btnNewTab', 'btnSidebar', 'stI18n'].forEach(id => { el[id] = document.getElementById(id); });
+ 'palette', 'palInput', 'palList', 'toast', 'btnNew', 'btnNewTab', 'btnSidebar', 'stI18n', 'btnOpen', 'btnSave', 'btnSaveAs', 'fileInput', 'dropHint', 'nameDlg', 'dlgTitle', 'dlgInput', 'dlgOk', 'dlgCancel'].forEach(id => { el[id] = document.getElementById(id); });
 
 /* ============================================================
    Sample notes
@@ -643,75 +694,78 @@ function makeLog() {
 const SAMPLE_README = [
   '# PersonalNotebook  #docs #linefilter',
   '',
-  'Sublime 風格的 Notebook，核心是 Line Filter：像 grep 一樣，即時過濾目前這份文件的每一行。',
   'A Sublime-style notebook built around Line Filter: grep-like, instant filtering of every line in the current document.',
   '',
-  '## 快速開始 / Quick start',
+  '## Quick start',
   '',
-  '- 切到 server.log，Filter Bar 已預填 ERROR|WARN（Regex 模式）',
-  '  Open server.log. The filter bar is prefilled with ERROR|WARN (regex mode).',
-  '- Enter / Shift+Enter 在結果行之間跳轉',
-  '  Enter / Shift+Enter jumps to the next / previous result line.',
-  '- 把 Include 改成 Exclude，就會排除符合的行',
-  '  Switch Include to Exclude to drop the matching lines instead.',
-  '- 開啟「摺疊未匹配行」(Fold unmatched)，未匹配的行會在編輯器內摺疊，行號保持原樣',
-  '  Turn on Fold unmatched to collapse non-matching lines in the editor; line numbers stay unchanged.',
-  '- 結果面板可以複製、匯出成新分頁，或原地刪除行（可用 Ctrl+Z 還原）',
-  '  The results panel can copy lines, export them to a new tab, or delete lines in place (Ctrl+Z undoes it).',
-  '- 試試 Regex：^\\s+at 找出所有堆疊追蹤，latency=\\d{3,}ms 找出慢請求',
-  '  Try regex: ^\\s+at finds stack traces, latency=\\d{3,}ms finds slow requests.',
-  '- 狀態列的「EN / 中文」按鈕（或 Alt+L）可切換介面語言',
-  '  The EN / 中文 button in the status bar (or Alt+L) switches the interface language.',
+  '- Open server.log. The filter bar is prefilled with ERROR|WARN (regex mode).',
+  '- Press Enter / Shift+Enter to jump to the next / previous result line.',
+  '- Switch Include to Exclude to drop the matching lines instead.',
+  '- Turn on Fold unmatched to collapse non-matching lines in the editor. Line numbers stay unchanged.',
+  '- Use the results panel to copy lines, export them to a new tab, or delete lines in place (Ctrl+Z undoes it).',
+  '- Try regex: ^\\s+at finds stack traces, latency=\\d{3,}ms finds slow requests.',
+  '- The EN / 中文 button in the status bar (or Alt+L) switches the interface language.',
   '',
-  '## Filter 選項 / Filter options',
+  '## Open and save files',
   '',
-  '    Include       只保留匹配行 / keep matching lines',
-  '    Exclude       排除匹配行 / drop matching lines',
-  '    .*            Regex 模式 / regular expression mode',
-  '    Aa            大小寫相符 / match case',
-  '    Context       Include 模式下顯示前後 N 行 / show N lines around each match',
-  '    Fold          在編輯器內摺疊未匹配行 / collapse non-matching lines',
+  '- Open (Ctrl+O, or drag files onto the window) loads text files into new tabs.',
+  '- Save (Ctrl+S) writes back to the original file when the browser allows it.',
+  '- Save As (Ctrl+Shift+S) writes the note to a new file and links the tab to it.',
+  '- A dot on a tab means the note has changes that are not saved to a file yet.',
+  '- To save straight into the original file, open the standalone HTML file in Chrome or Edge.',
+  '- Inside the claude.ai viewer the browser cannot grant write access, so Save offers a downloaded copy instead.',
+  '- Notes are also kept in this browser automatically, so closing the page does not lose them.',
   '',
-  '## 快捷鍵 / Shortcuts',
+  '## Filter options',
   '',
-  '    Ctrl+P            跳到筆記 / go to note',
-  '    Ctrl+Shift+P      指令面板 / command palette',
-  '    Ctrl+Shift+F      開啟 Filter Bar（Alt+F、Ctrl+F 也可以）/ open the filter bar',
-  '    Alt+R / Alt+C     Regex / 大小寫 / regex / match case',
-  '    Alt+L             切換語言 / switch language',
-  '    Ctrl+D            選取下一個相同字串 / select next occurrence',
-  '    Ctrl+Shift+↑/↓    整行上移 / 下移 / move line up / down',
-  '    Ctrl+Shift+D      複製整行 / duplicate line',
-  '    Ctrl+/            切換註解 / toggle comment',
-  '    Ctrl+G            跳到行號（或在 Palette 輸入 :120）/ go to line',
-  '    Ctrl+B            收合側邊欄 / toggle sidebar',
-  '    Alt+N / Alt+W     新增 / 關閉分頁 / new / close tab',
+  '    Include       keep matching lines',
+  '    Exclude       drop matching lines',
+  '    .*            regular expression mode',
+  '    Aa            match case',
+  '    Context       show N lines around each match (Include mode)',
+  '    Fold          collapse non-matching lines in the editor',
   '',
-  '## 架構 / Architecture',
+  '## Shortcuts',
   '',
-  '    UI shell        側邊欄、分頁、Filter Bar、結果面板、狀態列 / sidebar, tabs, filter bar, results, status bar',
-  '    Editor core     CodeMirror 5 + sublime keymap，每個分頁一個 Doc / one Doc per tab',
-  '    Filter engine   filterLines(texts, filter) → kinds[]（純函式 / pure function）',
-  '    Decorations     行高亮、Fold、Minimap、Results / line highlight, fold, minimap, results',
-  '    Storage         localStorage（筆記與偏好 / notes and preferences）',
+  '    Ctrl+P            go to note',
+  '    Ctrl+Shift+P      command palette',
+  '    Ctrl+O            open file',
+  '    Ctrl+S            save',
+  '    Ctrl+Shift+S      save as',
+  '    Ctrl+Shift+F      open the filter bar (Alt+F and Ctrl+F also work)',
+  '    Alt+R / Alt+C     regex / match case',
+  '    Alt+L             switch language',
+  '    Ctrl+D            select next occurrence',
+  '    Ctrl+Shift+Up/Down  move line up / down',
+  '    Ctrl+Shift+D      duplicate line',
+  '    Ctrl+/            toggle comment',
+  '    Ctrl+G            go to line (or type :120 in the palette)',
+  '    Ctrl+B            toggle sidebar',
+  '    Alt+N / Alt+W     new / close tab',
+  '',
+  '## Architecture',
+  '',
+  '    UI shell        sidebar, tabs, filter bar, results panel, status bar',
+  '    Editor core     CodeMirror 5 + sublime keymap, one Doc per tab',
+  '    Filter engine   filterLines(texts, filter) -> kinds[] (pure function)',
+  '    Decorations     line highlight, fold, minimap, results list',
+  '    File I/O        File System Access API, file input, downloads capability',
+  '    Storage         localStorage (notes and preferences)',
   ''
 ].join('\n');
 const SAMPLE_TODO = [
-  '# 待辦清單 / To-do  #todo #personal',
+  '# To-do  #todo #personal',
   '',
-  '- [ ] 在 server.log 用 Exclude 模式過濾掉 healthz',
-  '      In server.log, use Exclude mode to hide healthz requests',
-  '- [x] 用 Regex 找出 latency 超過 1 秒的請求',
-  '      Use regex to find requests slower than one second',
-  '- [ ] 把過濾結果匯出成新分頁，貼進事故報告',
-  '      Export the filtered lines to a new tab and paste them into the incident report',
-  '- [ ] 為常用的 filter 建立收藏',
-  '      Save frequently used filters',
+  '- [ ] In server.log, use Exclude mode to hide healthz requests',
+  '- [x] Use regex to find requests slower than one second',
+  '- [ ] Export the filtered lines to a new tab and paste them into the incident report',
+  '- [ ] Open a local log file, filter it, and keep the result with Save As',
+  '- [ ] Save frequently used filters',
   '',
-  '## 想法 / Ideas  #ideas',
+  '## Ideas  #ideas',
   '',
-  '- 多組 filter 以 AND / OR 組合 (combine several filters with AND / OR)',
-  '- 依時間區間過濾 log (filter logs by time range)',
+  '- Combine several filters with AND / OR',
+  '- Filter logs by time range',
   ''
 ].join('\n');
 const SAMPLE_JS = [
@@ -747,6 +801,8 @@ const SAMPLE_JS = [
   'module.exports = { fetchJSON, debounce };',
   ''
 ].join('\n');
+
+const LEGACY_SAMPLES = [1729478959, -1514556567, 1796177854, -155148500]; // hashes of earlier sample README/todo texts, replaced only when untouched
 
 /* ============================================================
    Notes
@@ -791,7 +847,7 @@ function renderTabs() {
   el.tabs.innerHTML = openIds.map(id => {
     const n = byId(id);
     return '<div class="tab' + (id === activeId ? ' active' : '') + '" data-id="' + id + '" role="tab" tabindex="0"><span class="tab-name">' + esc(n.name) +
-      '</span><button class="tab-x" data-close="' + id + '" aria-label="Close ' + esc(n.name) + '">' + icon('close') + '</button></div>';
+      '</span>' + (n.dirty ? '<span class="tab-dot" title="' + esc(tr('tipDirty')) + '"></span>' : '') + '<button class="tab-x" data-close="' + id + '" aria-label="Close ' + esc(n.name) + '">' + icon('close') + '</button></div>';
   }).join('');
   const a = el.tabs.querySelector('.active');
   if (a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -875,7 +931,7 @@ const cm = CodeMirror(el.editor, {
     };
     k[mod + '-F'] = () => openFilter();
     k[mod + '-G'] = () => openPalette(':');
-    k[mod + '-S'] = () => saveNow();
+    k[mod + '-S'] = () => saveFile();
     return k;
   })()
 });
@@ -1252,6 +1308,8 @@ cm.on('cursorActivity', updateStatus);
 let tagTimer = 0;
 cm.on('change', () => {
   scheduleFilter(); mmDirty(); updateDocStats(); schedulePersist();
+  const dn = activeNote();
+  if (dn && !dn.dirty) { dn.dirty = true; renderTabs(); }
   clearTimeout(tagTimer);
   tagTimer = setTimeout(() => { const n = activeNote(); if (n) { n.tags = extractTags(n); renderNotes(); } }, 500);
 });
@@ -1272,15 +1330,231 @@ let toastTimer = 0;
 function toast(msg) {
   el.toast.textContent = msg; el.toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2600);
+  toastTimer = setTimeout(() => { el.toast.hidden = true; }, Math.max(2600, msg.length * 55));
 }
 function persist() {
   store.set(KEY, {
     v: 1, uid: uid, open: openIds, active: activeId, F: F, UI: UI,
-    notes: notes.map(n => ({ id: n.id, name: n.name, lang: n.lang, text: n.doc.getValue() }))
+    notes: notes.map(n => ({ id: n.id, name: n.name, lang: n.lang, text: n.doc.getValue() })).filter(n => n.text.length <= 400000)
   });
 }
-function saveNow() { persist(); toast(tr('toastSaved')); }
+/* ============================================================
+   File I/O: open, save (in place), save as
+   ============================================================ */
+/*FILEHELPERS*/
+const DL_EXT = ['txt', 'json', 'md', 'csv', 'html', 'svg'];
+const MAX_FILE = 20 * 1024 * 1024;
+function safeDownloadName(name) {
+  let f = String(name || '').trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_');
+  if (!f || f === '.' || f === '..') f = 'untitled.txt';
+  const m = /\.([A-Za-z0-9]+)$/.exec(f);
+  if (m && DL_EXT.indexOf(m[1].toLowerCase()) >= 0) return { name: f, renamed: false };
+  return { name: f + '.txt', renamed: true };
+}
+function detectEol(text) { return text.indexOf('\r\n') >= 0 ? '\r\n' : '\n'; }
+function textHash(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return h; }
+/*END FILEHELPERS*/
+
+// Inside the claude.ai viewer the browser cannot give this page write access to files, so Save offers a download instead.
+let DL = null;
+try {
+  if (window.claude && typeof window.claude.use === 'function') window.claude.use('downloads').then(d => { DL = d || null; }, () => { /* unavailable */ });
+} catch (e) { /* capability not available */ }
+const inViewer = () => typeof window.claude !== 'undefined';
+
+function fileText(n) { return n.doc.getValue(n.eol && n.eol !== '\n' ? n.eol : undefined); }
+function markSaved(n) { n.dirty = false; renderTabs(); }
+function applyName(n, name) {
+  if (!name || name === n.name) return;
+  n.name = name;
+  const l = langFromName(name);
+  if (l !== 'text' || n.lang === 'text') {
+    n.lang = l;
+    if (n.id === activeId) { cm.setOption('mode', modeOf(l)); el.stLang.value = l; }
+  }
+  n.tags = extractTags(n);
+}
+function adoptHandle(n, h) {
+  n.handle = h;
+  applyName(n, h.name);
+  n.dirty = false;
+  renderTabs(); renderNotes(); schedulePersist();
+}
+async function writeHandle(h, text) {
+  if (h.queryPermission) {
+    let p = await h.queryPermission({ mode: 'readwrite' });
+    if (p !== 'granted' && h.requestPermission) p = await h.requestPermission({ mode: 'readwrite' });
+    if (p !== 'granted') { const err = new Error('permission denied'); err.name = 'NotAllowedError'; throw err; }
+  }
+  const w = await h.createWritable();
+  try { await w.write(text); } finally { await w.close(); }
+}
+function askName(title, initial) {
+  return new Promise(resolve => {
+    el.dlgTitle.textContent = title;
+    el.dlgInput.value = initial;
+    el.nameDlg.hidden = false;
+    el.dlgInput.focus();
+    el.dlgInput.select();
+    const finish = v => {
+      el.nameDlg.hidden = true;
+      el.dlgInput.removeEventListener('keydown', onKey);
+      el.dlgOk.removeEventListener('click', onOk);
+      el.dlgCancel.removeEventListener('click', onCancel);
+      el.nameDlg.removeEventListener('mousedown', onBackdrop);
+      cm.focus();
+      resolve(v);
+    };
+    const onKey = e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); finish(el.dlgInput.value.trim() || null); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+    };
+    const onOk = () => finish(el.dlgInput.value.trim() || null);
+    const onCancel = () => finish(null);
+    const onBackdrop = e => { if (e.target === el.nameDlg) finish(null); };
+    el.dlgInput.addEventListener('keydown', onKey);
+    el.dlgOk.addEventListener('click', onOk);
+    el.dlgCancel.addEventListener('click', onCancel);
+    el.nameDlg.addEventListener('mousedown', onBackdrop);
+  });
+}
+async function downloadCopy(n, text, wantedName) {
+  if (!text) { toast(tr('toastEmptyNote')); return false; }
+  const d = safeDownloadName(wantedName);
+  if (DL) {
+    try {
+      await DL.save({ filename: d.name, data: text });
+      markSaved(n);
+      toast(tr(d.renamed ? 'toastDownloadedExt' : 'toastDownloaded', { name: d.name }));
+      return true;
+    } catch (e) {
+      if (!(e && e.code === 'declined')) toast(tr('toastDownloadFail'));
+      return false;
+    }
+  }
+  if (inViewer()) { toast(tr('toastNoSave')); return false; }
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = d.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    markSaved(n);
+    toast(tr('toastDownloadedPlain', { name: d.name }));
+    return true;
+  } catch (e) { toast(tr('toastDownloadFail')); return false; }
+}
+async function saveVia(n, ask) {
+  const text = fileText(n);
+  if (typeof window.showSaveFilePicker === 'function') {
+    let h = null;
+    try { h = await window.showSaveFilePicker({ suggestedName: n.name }); }
+    catch (e) { if (e && e.name === 'AbortError') return; h = null; /* picker blocked in this frame: fall back to download */ }
+    if (h) {
+      try { await writeHandle(h, text); adoptHandle(n, h); toast(tr('toastSavedAs', { name: h.name })); }
+      catch (e) { toast(tr('toastWriteFail')); }
+      return;
+    }
+  }
+  let name = n.name;
+  if (ask) { name = await askName(tr('dlgSaveAs'), n.name); if (!name) return; }
+  const ok = await downloadCopy(n, text, name);
+  if (ok && ask && name !== n.name) { applyName(n, name); renderTabs(); renderNotes(); schedulePersist(); }
+}
+async function saveFile() {
+  const n = activeNote();
+  if (!n) return;
+  persist();
+  if (n.handle) {
+    try { await writeHandle(n.handle, fileText(n)); markSaved(n); toast(tr('toastSavedFile', { name: n.name })); }
+    catch (e) { if (!(e && e.name === 'AbortError')) toast(tr('toastWriteFail')); }
+    return;
+  }
+  return saveVia(n, false);
+}
+function saveFileAs() {
+  const n = activeNote();
+  if (!n) return;
+  persist();
+  return saveVia(n, true);
+}
+async function loadEntries(entries) {
+  let opened = 0, last = null, big = null;
+  for (const en of entries) {
+    const f = en.file;
+    if (f.size > MAX_FILE) { toast(tr('toastTooBig', { name: f.name })); continue; }
+    let text;
+    try { text = await f.text(); } catch (e) { toast(tr('toastReadFail', { name: f.name })); continue; }
+    if (text.slice(0, 8000).indexOf('\u0000') >= 0) { toast(tr('toastBinary', { name: f.name })); continue; }
+    let dup = null;
+    if (en.handle) {
+      for (const n of notes) {
+        if (!n.handle) continue;
+        try { if (await n.handle.isSameEntry(en.handle)) { dup = n; break; } } catch (e) { /* ignore */ }
+      }
+    }
+    if (dup) {
+      if (openIds.indexOf(dup.id) < 0) openIds.push(dup.id);
+      last = dup;
+      toast(tr('toastAlreadyOpen', { name: dup.name }));
+      continue;
+    }
+    const n = addNote({ name: f.name, text: text, lang: langFromName(f.name) });
+    n.handle = en.handle || null;
+    n.eol = detectEol(text);
+    n.dirty = false;
+    if (text.length > 400000) big = f.name;
+    openIds.push(n.id);
+    last = n; opened++;
+  }
+  if (last) activate(last.id);
+  if (big) toast(tr('toastBigNote', { name: big }));
+  else if (opened) toast(tr('toastLoaded', { n: opened }));
+}
+async function openFiles() {
+  if (typeof window.showOpenFilePicker === 'function') {
+    try {
+      const hs = await window.showOpenFilePicker({ multiple: true });
+      const entries = [];
+      for (const h of hs) entries.push({ handle: h, file: await h.getFile() });
+      return loadEntries(entries);
+    } catch (e) { if (e && e.name === 'AbortError') return; /* picker blocked in this frame: use the file input */ }
+  }
+  el.fileInput.value = '';
+  el.fileInput.click();
+}
+el.fileInput.addEventListener('change', () => {
+  const fs = Array.prototype.slice.call(el.fileInput.files || []);
+  if (fs.length) loadEntries(fs.map(f => ({ file: f, handle: null })));
+});
+el.btnOpen.addEventListener('click', openFiles);
+el.btnSave.addEventListener('click', saveFile);
+el.btnSaveAs.addEventListener('click', saveFileAs);
+
+// Drag files from the desktop onto the window to open them.
+function hasFiles(e) { const t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, 'Files') >= 0; }
+['dragenter', 'dragover'].forEach(ev => el.app.addEventListener(ev, e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  e.dataTransfer.dropEffect = 'copy';
+  el.dropHint.hidden = false;
+}, true));
+el.app.addEventListener('dragleave', e => { if (!e.relatedTarget) el.dropHint.hidden = true; }, true);
+el.app.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  el.dropHint.hidden = true;
+  const items = Array.prototype.slice.call(e.dataTransfer.items || []).filter(it => it.kind === 'file');
+  const grabbed = items.map(it => ({ h: typeof it.getAsFileSystemHandle === 'function' ? it.getAsFileSystemHandle() : null, f: it.getAsFile() }));
+  Promise.all(grabbed.map(async g => {
+    let handle = null;
+    try { const h = g.h ? await g.h : null; if (h && h.kind === 'file') handle = h; } catch (err) { /* no handle available */ }
+    return g.f ? { file: g.f, handle: handle } : null;
+  })).then(list => loadEntries(list.filter(Boolean)));
+}, true);
+window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('drop', e => { if (hasFiles(e)) { e.preventDefault(); el.dropHint.hidden = true; } });
 let persistTimer = 0;
 function schedulePersist() { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 800); }
 function persistSoon() { schedulePersist(); }
@@ -1292,7 +1566,9 @@ window.addEventListener('beforeunload', persist);
 const COMMANDS = [
   { label: 'File: New Note', key: 'Alt+N', run: newNote },
   { label: 'File: Close Tab', key: 'Alt+W', run: () => closeTab(activeId) },
-  { label: 'File: Save', key: 'Mod+S', run: saveNow },
+  { label: 'File: Open File…', key: 'Mod+O', run: openFiles },
+  { label: 'File: Save', key: 'Mod+S', run: saveFile },
+  { label: 'File: Save As…', key: 'Mod+Shift+S', run: saveFileAs },
   { label: 'View: Toggle Sidebar', key: 'Mod+B', run: toggleSidebar },
   { label: 'View: Toggle Minimap', run: toggleMinimap },
   { label: 'View: Toggle Word Wrap', run: toggleWrap },
@@ -1403,7 +1679,9 @@ window.addEventListener('keydown', e => {
   if (e.altKey && !m && !e.shiftKey && c === 'KeyF') return stop(openFilter);
   if (m && !e.altKey && !e.shiftKey && c === 'KeyG') return stop(() => openPalette(':'));
   if (m && !e.altKey && !e.shiftKey && c === 'KeyB') return stop(toggleSidebar);
-  if (m && !e.altKey && !e.shiftKey && c === 'KeyS') return stop(saveNow);
+  if (m && !e.altKey && !e.shiftKey && c === 'KeyS') return stop(saveFile);
+  if (m && !e.altKey && e.shiftKey && c === 'KeyS') return stop(saveFileAs);
+  if (m && !e.altKey && !e.shiftKey && c === 'KeyO') return stop(openFiles);
   if (e.altKey && !m && !e.shiftKey && c === 'KeyN') return stop(newNote);
   if (e.altKey && !m && !e.shiftKey && c === 'KeyW') return stop(() => closeTab(activeId));
   if (e.altKey && !m && !e.shiftKey && c === 'KeyR' && F.on) return stop(() => setF({ regex: !F.regex }));
@@ -1462,12 +1740,11 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cm
       if (saved.UI) ['sidebar', 'minimap', 'wrap'].forEach(k => { if (typeof saved.UI[k] === 'boolean') UI[k] = saved.UI[k]; });
       if (saved.UI && (saved.UI.lang === 'zh' || saved.UI.lang === 'en')) UI.lang = saved.UI.lang;
       restored = notes.length > 0;
-      // Upgrade an untouched README saved by an older version to the bilingual one.
-      const rd = notes.find(n => n.name === 'README.md');
-      if (rd) {
-        const txt = rd.doc.getValue();
-        if (txt.indexOf('Quick start') < 0 && txt.indexOf('# PersonalNotebook  #docs #linefilter') === 0) { rd.doc.setValue(SAMPLE_README); rd.tags = extractTags(rd); }
-      }
+      // Replace an untouched sample README / todo saved by an earlier version with the English-only text.
+      [['README.md', SAMPLE_README], ['todo.md', SAMPLE_TODO]].forEach(pair => {
+        const nt = notes.find(n => n.name === pair[0]);
+        if (nt && LEGACY_SAMPLES.indexOf(textHash(nt.doc.getValue())) >= 0) { nt.doc.setValue(pair[1]); nt.tags = extractTags(nt); }
+      });
     } catch (err) { restored = false; }
   }
   if (!restored) { notes = []; openIds = []; seedNotes(); }
