@@ -257,6 +257,37 @@ span.CodeMirror-selectedtext { background: none; }
 .act.primary { background: var(--orange); color: #1b1c18; font-weight: 600; }
 .act.primary:hover { background: #ffab40; color: #1b1c18; border-color: transparent; }
 
+/* ---------- shortcuts + about ---------- */
+.pal.keys { width: min(720px, 100%); }
+.keys-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 8px 16px; font-weight: 600; font-size: 14px; }
+.keys > input { border-top: 1px solid var(--line); }
+.keys-hint { padding: 8px 16px; font-size: 12px; color: var(--fg-mute); }
+.keys-list { max-height: min(400px, 56vh); overflow: auto; padding-bottom: 6px; }
+.k-group { padding: 10px 16px 4px; font-size: 10.5px; letter-spacing: .12em; color: var(--fg-mute); font-weight: 600; text-transform: uppercase; }
+.krow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 4px 10px 4px 16px; }
+.krow:hover { background: rgba(255, 255, 255, .03); }
+.krow.rec { background: rgba(253, 151, 31, .09); }
+.k-label { flex: 1 1 200px; min-width: 0; font-size: 13px; }
+.k-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 3px 1px 8px; font: 11.5px var(--font-mono); background: #34352d; border: 1px solid var(--line); border-radius: 4px; color: var(--fg); }
+.chip.custom { border-color: var(--orange); }
+.chip button { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; color: var(--fg-mute); }
+.chip button:hover { background: var(--sel); color: var(--pink); }
+.chip .ico { width: 10px; height: 10px; }
+.chip.none { padding-right: 8px; border-style: dashed; color: var(--fg-mute); }
+.chip.recording { padding-right: 8px; color: var(--orange); border-color: var(--orange); }
+.about-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 16px 16px 4px; }
+.about-name { font-size: 17px; font-weight: 600; }
+.about-ver { font: 12px var(--font-mono); color: var(--orange); }
+.about-desc { margin: 0; padding: 4px 16px 10px; color: var(--fg-dim); font-size: 12.5px; }
+.about-sub { padding: 8px 16px 4px; font-size: 10.5px; letter-spacing: .12em; color: var(--fg-mute); font-weight: 600; text-transform: uppercase; border-top: 1px solid var(--line); }
+.about-log { max-height: min(240px, 40vh); overflow: auto; padding: 0 16px 10px; font-size: 12.5px; }
+.about-log h4 { margin: 8px 0 4px; font: 600 12.5px var(--font-ui); }
+.about-log h4 span { color: var(--fg-mute); font-weight: 400; margin-left: 6px; }
+.about-log ul { margin: 0; padding-left: 18px; color: var(--fg-dim); }
+.about-log li { margin: 2px 0; }
+.about-built { align-self: center; font-size: 11.5px; color: var(--fg-mute); }
+
 /* ---------- narrow screens ---------- */
 @media (max-width: 720px) {
   .sidebar { position: absolute; grid-area: auto; z-index: 30; top: 0; bottom: 0; left: 0; width: min(260px, 82%); box-shadow: 8px 0 30px rgba(0, 0, 0, .5); }
@@ -328,9 +359,11 @@ span.CodeMirror-selectedtext { background: none; }
     <span id="stFilter" class="st-filter"></span>
     <span class="spacer"></span>
     <button id="stI18n" data-i18n-title="tipLang">EN</button>
+    <button id="stKeys" class="hide-narrow" data-i18n="keysBtn" data-i18n-title="tipKeys">Shortcuts</button>
     <button id="stMap" class="hide-narrow" data-i18n="minimap" data-i18n-title="tipMinimap">Minimap</button>
     <button id="stWrap" data-i18n="wrap" data-i18n-title="tipWrap">Wrap</button>
     <select id="stLang" aria-label="Syntax"></select>
+    <button id="stVer" data-i18n-title="tipVersion">v0.0.1</button>
   </footer>
 
   <input type="file" id="fileInput" multiple hidden>
@@ -343,6 +376,24 @@ span.CodeMirror-selectedtext { background: none; }
         <button class="act" id="dlgCancel" data-i18n="cancel">Cancel</button>
         <button class="act primary" id="dlgOk" data-i18n="saveBtn">Save</button>
       </div>
+    </div>
+  </div>
+  <div class="pal-backdrop" id="keysDlg" hidden>
+    <div class="pal keys" role="dialog" aria-modal="true" aria-labelledby="keysTitle">
+      <div class="keys-head"><span id="keysTitle" data-i18n="keysTitle">Keyboard Shortcuts</span><button class="icon-btn" id="keysClose" data-i18n-title="done" aria-label="Close" data-icon="close"></button></div>
+      <input id="keysFilter" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="phKeysFilter" aria-label="Search shortcuts">
+      <div class="keys-hint" id="keysHint"></div>
+      <div class="keys-list" id="keysList"></div>
+      <div class="dlg-actions"><button class="act" id="keysReset" data-i18n="keysResetAll">Reset all</button><span class="spacer"></span><button class="act primary" id="keysDone" data-i18n="done">Done</button></div>
+    </div>
+  </div>
+  <div class="pal-backdrop" id="aboutDlg" hidden>
+    <div class="pal about" role="dialog" aria-modal="true" aria-labelledby="aboutName">
+      <div class="about-head"><span class="about-name" id="aboutName">PersonalNotebook</span><span class="about-ver" id="aboutVer"></span></div>
+      <p class="about-desc" data-i18n="aboutDesc"></p>
+      <div class="about-sub" data-i18n="aboutChangelog"></div>
+      <div class="about-log" id="aboutLog"></div>
+      <div class="dlg-actions"><span class="about-built" data-i18n="aboutBuilt"></span><span class="spacer"></span><button class="act primary" id="aboutClose" data-i18n="done">Done</button></div>
     </div>
   </div>
   <div class="pal-backdrop" id="palette" hidden>
@@ -391,6 +442,32 @@ const store = {
 };
 
 /* ============================================================
+   Version
+   ============================================================ */
+const APP_VERSION = '0.0.1', APP_DATE = '2026-11-06';
+const CHANGELOG = [
+  {
+    v: '0.0.1', date: '2026-11-06',
+    en: [
+      'First release.',
+      'Line Filter: include, exclude, regex, match case, context lines, fold unmatched lines, results panel.',
+      'Copy, export and delete filtered lines.',
+      'Open, Save and Save As for local files, with drag and drop and no file size limit.',
+      'Customizable keyboard shortcuts.',
+      'English and Chinese interface.'
+    ],
+    zh: [
+      '第一個版本。',
+      'Line Filter：Include、Exclude、Regex、大小寫、上下文行數、摺疊未匹配行、結果面板。',
+      '複製、匯出與刪除過濾後的行。',
+      '開啟、儲存與另存本機檔案，支援拖放，沒有檔案大小限制。',
+      '可自訂快捷鍵。',
+      '中文與英文介面。'
+    ]
+  }
+];
+
+/* ============================================================
    i18n  (zh-Hant / en)
    ============================================================ */
 /*I18N*/
@@ -431,15 +508,23 @@ const I18N = {
     palEmpty: '沒有符合的項目', palLineHint: '輸入行號，例如 :120', goLine: '跳到第 {n} 行', lastLine: '（最後一行）',
     tipOpen: '開啟檔案 (Mod+O)', tipSave: '儲存 (Mod+S)：可行時直接寫回原檔', tipSaveAs: '另存新檔… (Mod+Shift+S)',
     dropHint: '拖放檔案即可開啟', cancel: '取消', saveBtn: '儲存', dlgSaveAs: '另存新檔，請輸入檔名', tipDirty: '尚未儲存到檔案的變更',
-    toastLoaded: '已開啟 {n} 個檔案', toastAlreadyOpen: '{name} 已經開啟', toastTooBig: '{name} 超過 20 MB，已略過',
-    toastBinary: '{name} 看起來不是文字檔，已略過', toastReadFail: '無法讀取 {name}',
+    toastLoaded: '已開啟 {n} 個檔案', toastAlreadyOpen: '{name} 已經開啟',
+    toastBinary: '{name} 看起來不是文字檔，已略過', toastReadFail: '無法讀取 {name}（檔案可能超過瀏覽器能處理的大小）',
     toastBigNote: '{name} 檔案較大，不會保留在瀏覽器儲存空間，請記得儲存成檔案。',
     toastSavedFile: '已儲存 {name}', toastSavedAs: '已另存為 {name}', toastWriteFail: '無法寫入檔案，請改用「另存新檔」。',
     toastEmptyNote: '這份筆記是空的，沒有可儲存的內容',
     toastDownloaded: '已將副本儲存為 {name}。此環境無法覆寫原檔。',
     toastDownloadedExt: '已將副本儲存為 {name}。此環境只允許 .txt、.md、.json、.csv、.html、.svg，因此加上了 .txt。',
     toastDownloadedPlain: '已下載 {name}', toastDownloadFail: '下載沒有完成',
-    toastNoSave: '此環境無法儲存檔案。請改用獨立的 HTML 檔，並以 Chrome 或 Edge 開啟。'
+    toastNoSave: '此環境無法儲存檔案。請改用獨立的 HTML 檔，並以 Chrome 或 Edge 開啟。',
+    toastLarge: '已開啟 {name}（{mb} MB）。大檔案的過濾與 Minimap 可能較慢，也不會保留在瀏覽器儲存空間，請記得儲存成檔案。',
+    stNoDeco: ' · 行數過多，已關閉標示',
+    keysTitle: '快捷鍵設定', phKeysFilter: '搜尋動作或快捷鍵…',
+    keysHint: '點選 + 後按下新的快捷鍵，Esc 取消。一個動作可以有多組快捷鍵。',
+    keysRecording: '請按下快捷鍵…', keysNone: '未設定', keysAdd: '新增快捷鍵', keysRemove: '移除', keysReset: '還原預設', keysResetAll: '全部還原', done: '完成',
+    keysBtn: '快捷鍵', tipKeys: '快捷鍵設定 (Mod+,)',
+    toastNeedMod: '請搭配 Ctrl、Alt 或 ⌘（或使用 F 鍵）', toastReserved: '{combo} 是編輯器保留的快捷鍵', toastMoved: '已從「{name}」移過來', toastKeysReset: '已還原所有預設快捷鍵',
+    tipVersion: '版本資訊與更新紀錄', aboutDesc: 'Sublime 風格的筆記編輯器，內建即時 Line Filter。', aboutChangelog: '更新紀錄', aboutBuilt: '使用 CodeMirror 5 建置'
   },
   en: {
     notes: 'NOTES', tags: 'TAGS',
@@ -475,29 +560,46 @@ const I18N = {
     palEmpty: 'No matches', palLineHint: 'Type a line number, for example :120', goLine: 'Go to line {n}', lastLine: ' (last line)',
     tipOpen: 'Open file (Mod+O)', tipSave: 'Save (Mod+S): writes back to the original file when possible', tipSaveAs: 'Save As… (Mod+Shift+S)',
     dropHint: 'Drop files to open them', cancel: 'Cancel', saveBtn: 'Save', dlgSaveAs: 'Save as: enter a file name', tipDirty: 'Changes not saved to a file',
-    toastLoaded: 'Opened {n} file(s)', toastAlreadyOpen: '{name} is already open', toastTooBig: '{name} is larger than 20 MB and was skipped',
-    toastBinary: '{name} does not look like a text file and was skipped', toastReadFail: 'Could not read {name}',
+    toastLoaded: 'Opened {n} file(s)', toastAlreadyOpen: '{name} is already open',
+    toastBinary: '{name} does not look like a text file and was skipped', toastReadFail: 'Could not read {name}. It may be too large for the browser to handle.',
     toastBigNote: '{name} is large, so it is not kept in browser storage. Remember to save it to a file.',
     toastSavedFile: 'Saved {name}', toastSavedAs: 'Saved as {name}', toastWriteFail: 'Could not write to the file. Try Save As.',
     toastEmptyNote: 'This note is empty, so there is nothing to save',
     toastDownloaded: 'Saved a copy as {name}. This view cannot overwrite the original file.',
     toastDownloadedExt: 'Saved a copy as {name}. Downloads here are limited to .txt, .md, .json, .csv, .html and .svg, so .txt was added.',
     toastDownloadedPlain: 'Downloaded {name}', toastDownloadFail: 'The download was not saved',
-    toastNoSave: 'Saving files is not available in this view. Open the standalone HTML file in Chrome or Edge.'
+    toastNoSave: 'Saving files is not available in this view. Open the standalone HTML file in Chrome or Edge.',
+    toastLarge: 'Opened {name} ({mb} MB). Large files can make filtering and the minimap slower, and they are not kept in browser storage, so remember to save.',
+    stNoDeco: ' · too many lines, highlights off',
+    keysTitle: 'Keyboard Shortcuts', phKeysFilter: 'Search actions or shortcuts…',
+    keysHint: 'Click + and press the new shortcut. Esc cancels. An action can have several shortcuts.',
+    keysRecording: 'Press the new shortcut…', keysNone: 'Not set', keysAdd: 'Add shortcut', keysRemove: 'Remove', keysReset: 'Reset', keysResetAll: 'Reset all', done: 'Done',
+    keysBtn: 'Shortcuts', tipKeys: 'Keyboard shortcuts (Mod+,)',
+    toastNeedMod: 'Add Ctrl, Alt or ⌘ (or use an F key)', toastReserved: '{combo} is reserved by the editor', toastMoved: 'Moved from "{name}"', toastKeysReset: 'All shortcuts reset to defaults',
+    tipVersion: 'Version and release notes', aboutDesc: 'A Sublime-style notebook with a built-in Line Filter.', aboutChangelog: 'What is new', aboutBuilt: 'Built with CodeMirror 5'
   }
 };
 const CMD_ZH = {
+  'General: Go to Note…': '一般：跳到筆記…', 'General: Command Palette…': '一般：指令面板…', 'General: Go to Line…': '一般：跳到行號…',
+  'General: Keyboard Shortcuts…': '一般：快捷鍵設定…', 'General: About PersonalNotebook': '一般：關於 PersonalNotebook',
   'File: New Note': '檔案：新增筆記', 'File: Close Tab': '檔案：關閉分頁', 'File: Open File…': '檔案：開啟檔案…', 'File: Save': '檔案：儲存', 'File: Save As…': '檔案：另存新檔…',
   'View: Toggle Sidebar': '檢視：切換側邊欄', 'View: Toggle Minimap': '檢視：切換 Minimap', 'View: Toggle Word Wrap': '檢視：切換自動換行',
   'View: Switch Language (中文 / English)': '檢視：切換語言 (中文 / English)',
   'Filter: Open Filter Bar': '過濾：開啟過濾列', 'Filter: Close and Clear Decorations': '過濾：關閉並清除標示',
+  'Filter: Next Result': '過濾：下一筆結果', 'Filter: Previous Result': '過濾：上一筆結果',
   'Filter: Include Mode (keep matching lines)': '過濾：Include 模式（保留匹配行）',
   'Filter: Exclude Mode (drop matching lines)': '過濾：Exclude 模式（排除匹配行）',
   'Filter: Toggle Regex': '過濾：切換 Regex', 'Filter: Toggle Case Sensitive': '過濾：切換大小寫相符',
   'Filter: Toggle Fold Unmatched Lines': '過濾：切換摺疊未匹配行', 'Filter: Toggle Results Panel': '過濾：切換結果面板',
   'Filter: Copy Filtered Lines': '過濾：複製過濾後的行', 'Filter: Export Filtered Lines to New Tab': '過濾：匯出過濾結果到新分頁',
-  'Filter: Delete Matched Lines': '過濾：刪除匹配行', 'Filter: Delete Unmatched Lines': '過濾：刪除未匹配行'
+  'Filter: Delete Matched Lines': '過濾：刪除匹配行', 'Filter: Delete Unmatched Lines': '過濾：刪除未匹配行',
+  'Editor: Select Next Occurrence': '編輯器：選取下一個相同字串', 'Editor: Move Line Up': '編輯器：整行上移', 'Editor: Move Line Down': '編輯器：整行下移',
+  'Editor: Duplicate Line': '編輯器：複製整行', 'Editor: Delete Line': '編輯器：刪除整行', 'Editor: Select Line': '編輯器：選取整行',
+  'Editor: Toggle Comment': '編輯器：切換註解', 'Editor: Insert Line After': '編輯器：在下方插入新行', 'Editor: Insert Line Before': '編輯器：在上方插入新行',
+  'Editor: Join Lines': '編輯器：合併行', 'Editor: Indent': '編輯器：增加縮排', 'Editor: Outdent': '編輯器：減少縮排',
+  'Editor: Go to Matching Bracket': '編輯器：跳到對應括號', 'Editor: Add Cursor Above': '編輯器：在上一行加入游標', 'Editor: Add Cursor Below': '編輯器：在下一行加入游標'
 };
+const GROUP_ZH = { General: '一般', File: '檔案', View: '檢視', Filter: '過濾', Editor: '編輯器', Syntax: '語法' };
 const cmdZh = l => CMD_ZH[l] || (l.indexOf('Syntax: ') === 0 ? '語法：' + l.slice(8) : l);
 const tr = (k, v) => {
   let str = I18N[lang] && I18N[lang][k] != null ? I18N[lang][k] : (I18N.en[k] != null ? I18N.en[k] : k);
@@ -516,6 +618,9 @@ function applyI18n() {
   el.stI18n.textContent = lang === 'zh' ? 'EN' : '中文';
   renderNotes(); renderChrome(); renderResults(); updateCount(); updateFilterStatus(); updateStatus(); updateDocStats();
   if (PAL.open) palRender();
+  el.stVer.textContent = 'v' + APP_VERSION;
+  if (!el.keysDlg.hidden) { el.keysHint.textContent = tr('keysHint'); renderKeys(); }
+  if (!el.aboutDlg.hidden) renderAbout();
 }
 function setLang(l) { lang = l; UI.lang = l; applyI18n(); schedulePersist(); toast(tr('toastLang')); }
 function toggleLang() { setLang(lang === 'zh' ? 'en' : 'zh'); }
@@ -650,11 +755,12 @@ const F = { on: true, query: 'ERROR|WARN', regex: true, caseS: false, mode: 'inc
 const UI = { sidebar: true, minimap: true, wrap: false, lang: 'zh' };
 let notes = [], openIds = [], activeId = null, uid = 0, activeTag = null;
 let C = { empty: true }, R = null, deco = { doc: null, items: [], marks: [] };
+let KS = null, REC = null;   // key store, shortcut being recorded
 
 const el = {};
 ['app', 'sidebar', 'noteList', 'tagList', 'tabs', 'filterbar', 'fbWrap', 'fbQuery', 'fbInclude', 'fbExclude', 'fbRegex', 'fbCase', 'fbCtx', 'fbFold', 'fbPanel', 'fbCount', 'fbClose',
  'editor', 'minimap', 'mmCanvas', 'results', 'resMeta', 'resBody', 'resSpacer', 'resRows', 'resClose', 'stPos', 'stDoc', 'stFilter', 'stMap', 'stWrap', 'stLang',
- 'palette', 'palInput', 'palList', 'toast', 'btnNew', 'btnNewTab', 'btnSidebar', 'stI18n', 'btnOpen', 'btnSave', 'btnSaveAs', 'fileInput', 'dropHint', 'nameDlg', 'dlgTitle', 'dlgInput', 'dlgOk', 'dlgCancel'].forEach(id => { el[id] = document.getElementById(id); });
+ 'palette', 'palInput', 'palList', 'toast', 'btnNew', 'btnNewTab', 'btnSidebar', 'stI18n', 'btnOpen', 'btnSave', 'btnSaveAs', 'fileInput', 'dropHint', 'nameDlg', 'dlgTitle', 'dlgInput', 'dlgOk', 'dlgCancel', 'keysDlg', 'keysFilter', 'keysList', 'keysHint', 'keysReset', 'keysDone', 'keysClose', 'aboutDlg', 'aboutVer', 'aboutLog', 'aboutClose', 'stKeys', 'stVer'].forEach(id => { el[id] = document.getElementById(id); });
 
 /* ============================================================
    Sample notes
@@ -695,6 +801,7 @@ const SAMPLE_README = [
   '# PersonalNotebook  #docs #linefilter',
   '',
   'A Sublime-style notebook built around Line Filter: grep-like, instant filtering of every line in the current document.',
+  'Version v0.0.1. Click the version in the status bar to see what is new.',
   '',
   '## Quick start',
   '',
@@ -712,9 +819,18 @@ const SAMPLE_README = [
   '- Save (Ctrl+S) writes back to the original file when the browser allows it.',
   '- Save As (Ctrl+Shift+S) writes the note to a new file and links the tab to it.',
   '- A dot on a tab means the note has changes that are not saved to a file yet.',
+  '- There is no file size limit. Very large files (hundreds of MB) can feel slow because the whole file is held in memory.',
   '- To save straight into the original file, open the standalone HTML file in Chrome or Edge.',
   '- Inside the claude.ai viewer the browser cannot grant write access, so Save offers a downloaded copy instead.',
   '- Notes are also kept in this browser automatically, so closing the page does not lose them.',
+  '',
+  '## Customize shortcuts',
+  '',
+  '- Open Keyboard Shortcuts with Ctrl+, or the Shortcuts button in the status bar.',
+  '- Click + on a row, then press the new key combination. Esc cancels.',
+  '- An action can have several shortcuts. Click x on a shortcut to remove it, or Reset to restore the defaults.',
+  '- Reusing a shortcut moves it from the action that had it. Reset all restores every default.',
+  '- A shortcut needs Ctrl, Alt or Cmd (or an F key). Changes are saved in this browser.',
   '',
   '## Filter options',
   '',
@@ -725,14 +841,16 @@ const SAMPLE_README = [
   '    Context       show N lines around each match (Include mode)',
   '    Fold          collapse non-matching lines in the editor',
   '',
-  '## Shortcuts',
+  '## Default shortcuts',
   '',
   '    Ctrl+P            go to note',
   '    Ctrl+Shift+P      command palette',
+  '    Ctrl+,            keyboard shortcuts',
   '    Ctrl+O            open file',
   '    Ctrl+S            save',
   '    Ctrl+Shift+S      save as',
   '    Ctrl+Shift+F      open the filter bar (Alt+F and Ctrl+F also work)',
+  '    F3 / Shift+F3     next / previous filter result',
   '    Alt+R / Alt+C     regex / match case',
   '    Alt+L             switch language',
   '    Ctrl+D            select next occurrence',
@@ -746,11 +864,12 @@ const SAMPLE_README = [
   '## Architecture',
   '',
   '    UI shell        sidebar, tabs, filter bar, results panel, status bar',
-  '    Editor core     CodeMirror 5 + sublime keymap, one Doc per tab',
+  '    Editor core     CodeMirror 5, one Doc per tab',
+  '    Actions         one registry of commands and shortcuts, shared by keys and the palette',
   '    Filter engine   filterLines(texts, filter) -> kinds[] (pure function)',
   '    Decorations     line highlight, fold, minimap, results list',
   '    File I/O        File System Access API, file input, downloads capability',
-  '    Storage         localStorage (notes and preferences)',
+  '    Storage         localStorage (notes, shortcuts and preferences)',
   ''
 ].join('\n');
 const SAMPLE_TODO = [
@@ -802,7 +921,7 @@ const SAMPLE_JS = [
   ''
 ].join('\n');
 
-const LEGACY_SAMPLES = [1729478959, -1514556567, 1796177854, -155148500]; // hashes of earlier sample README/todo texts, replaced only when untouched
+const LEGACY_SAMPLES = [1729478959, -1514556567, 1796177854, -155148500, 1851954247]; // hashes of earlier sample README/todo texts, replaced only when untouched
 
 /* ============================================================
    Notes
@@ -919,26 +1038,30 @@ function startRename(li) {
 /* ============================================================
    Editor
    ============================================================ */
-const mod = isMac ? 'Cmd' : 'Ctrl';
+// Basic editing keys come from CodeMirror's default keymap. Commands that are customizable
+// actions (see ACTIONS) are removed here so a rebound shortcut never keeps its old meaning.
+(function buildKeyMap() {
+  const skip = ['deleteLine', 'save', 'find', 'findNext', 'findPrev', 'replace', 'replaceAll', 'indentMore', 'indentLess', 'selectNextOccurrence', 'goToBracket', 'toggleComment',
+    'swapLineUp', 'swapLineDown', 'duplicateLine', 'selectLine', 'insertLineAfter', 'insertLineBefore', 'joinLines', 'addCursorToPrevLine', 'addCursorToNextLine'];
+  const base = {}, def = CodeMirror.keyMap.sublime;
+  Object.keys(def).forEach(k => { if (k !== 'fallthrough' && skip.indexOf(def[k]) < 0) base[k] = def[k]; });
+  base.fallthrough = ['default'];
+  CodeMirror.keyMap.notebook = base;
+})();
 const cm = CodeMirror(el.editor, {
-  value: '', lineNumbers: true, theme: 'sublime', keyMap: 'sublime', indentUnit: 2, tabSize: 2, indentWithTabs: false,
+  value: '', lineNumbers: true, theme: 'sublime', keyMap: 'notebook', indentUnit: 2, tabSize: 2, indentWithTabs: false,
   lineWrapping: false, styleActiveLine: { nonEmpty: true }, matchBrackets: true, autoCloseBrackets: true,
   highlightSelectionMatches: { showToken: /\w/, minChars: 2, delay: 150 }, viewportMargin: 30,
-  extraKeys: (function () {
-    const k = {
-      'Tab': c => c.somethingSelected() ? c.indentSelection('add') : c.execCommand('insertSoftTab'),
-      'Shift-Tab': 'indentLess'
-    };
-    k[mod + '-F'] = () => openFilter();
-    k[mod + '-G'] = () => openPalette(':');
-    k[mod + '-S'] = () => saveFile();
-    return k;
-  })()
+  extraKeys: {
+    'Tab': c => c.somethingSelected() ? c.indentSelection('add') : c.execCommand('insertSoftTab'),
+    'Shift-Tab': 'indentLess'
+  }
 });
 
 /* ============================================================
    Decorations (line classes, collapsed folds, text marks)
    ============================================================ */
+const MAX_DECO = 30000, MAX_FOLDS = 50000;   // above these, per-line decorations are skipped to keep the editor responsive
 function clearDeco() {
   const d = deco;
   if (!d.doc) return;
@@ -954,8 +1077,13 @@ function applyDeco(doc, r, c) {
     const handles = [];
     doc.eachLine(h => { handles.push(h); });
     const inc = F.mode === 'include';
+    const runs = F.fold ? runsOf(r.n, i => !r.kinds[i]) : [];
+    const skipLines = (inc ? r.rows.length : r.matched) > MAX_DECO;
+    const skipFold = runs.length > MAX_FOLDS;
+    r.decoSkipped = skipLines || skipFold;
+    r.foldSkipped = skipFold;
     const addCls = (i, where, cls) => { doc.addLineClass(handles[i], where, cls); items.push([handles[i], where, cls]); };
-    for (let i = 0; i < r.n; i++) {
+    for (let i = 0; !skipLines && i < r.n; i++) {
       const k = r.kinds[i];
       if (inc) {
         if (k === 1) { addCls(i, 'background', 'filter-hit'); addCls(i, 'gutter', 'filter-hit-gutter'); }
@@ -976,8 +1104,8 @@ function applyDeco(doc, r, c) {
         }
       }
     }
-    if (F.fold) {
-      runsOf(r.n, i => !r.kinds[i]).forEach(run => {
+    if (F.fold && !skipFold) {
+      runs.forEach(run => {
         const a = run[0], b = run[1], len = x => r.texts[x].length;
         if (a > 0) {
           const w = document.createElement('span');
@@ -1052,7 +1180,7 @@ function updateFilterStatus() {
   if (C.error) { s.textContent = tr('stFilterErr', { e: C.error }); return; }
   if (!R) { s.textContent = ''; return; }
   const pct = R.n ? (R.hits.length / R.n * 100) : 0;
-  s.textContent = tr('stFilter', { h: fmtN(R.hits.length), n: fmtN(R.n), pct: pct.toFixed(1), ms: R.ms.toFixed(1) }) + (F.fold ? tr('stFolded') : '');
+  s.textContent = tr('stFilter', { h: fmtN(R.hits.length), n: fmtN(R.n), pct: pct.toFixed(1), ms: R.ms.toFixed(1) }) + (F.fold ? tr('stFolded') : '') + (R.decoSkipped ? tr('stNoDeco') : '');
 }
 function navigate(dir) {
   if (!R || !R.hits.length) return;
@@ -1232,7 +1360,7 @@ function mmSchedule() { if (!MM.raf) MM.raf = requestAnimationFrame(() => { MM.r
 function mmBuild() {
   const doc = cm.getDoc(), n = doc.lineCount();
   const live = F.on && R && R.doc === doc && R.n === n;
-  const fold = live && F.fold;
+  const fold = live && F.fold && !R.foldSkipped;
   const rows = fold ? R.rows : null;
   MM.rows = rows; MM.total = rows ? rows.length : n;
   MM.ppr = MM.total ? Math.min(3, MM.h / MM.total) : 3;
@@ -1334,8 +1462,8 @@ function toast(msg) {
 }
 function persist() {
   store.set(KEY, {
-    v: 1, uid: uid, open: openIds, active: activeId, F: F, UI: UI,
-    notes: notes.map(n => ({ id: n.id, name: n.name, lang: n.lang, text: n.doc.getValue() })).filter(n => n.text.length <= 400000)
+    v: 1, uid: uid, open: openIds, active: activeId, F: F, UI: UI, keys: KS ? KS.custom() : {},
+    notes: notes.filter(n => !n.big).map(n => ({ id: n.id, name: n.name, lang: n.lang, text: n.doc.getValue() })).filter(n => n.text.length <= 400000)
   });
 }
 /* ============================================================
@@ -1343,7 +1471,7 @@ function persist() {
    ============================================================ */
 /*FILEHELPERS*/
 const DL_EXT = ['txt', 'json', 'md', 'csv', 'html', 'svg'];
-const MAX_FILE = 20 * 1024 * 1024;
+const LARGE_FILE = 50 * 1024 * 1024;   // only used for a hint: there is no size limit
 function safeDownloadName(name) {
   let f = String(name || '').trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_');
   if (!f || f === '.' || f === '..') f = 'untitled.txt';
@@ -1480,10 +1608,9 @@ function saveFileAs() {
   return saveVia(n, true);
 }
 async function loadEntries(entries) {
-  let opened = 0, last = null, big = null;
+  let opened = 0, last = null, big = null, large = null;
   for (const en of entries) {
     const f = en.file;
-    if (f.size > MAX_FILE) { toast(tr('toastTooBig', { name: f.name })); continue; }
     let text;
     try { text = await f.text(); } catch (e) { toast(tr('toastReadFail', { name: f.name })); continue; }
     if (text.slice(0, 8000).indexOf('\u0000') >= 0) { toast(tr('toastBinary', { name: f.name })); continue; }
@@ -1504,12 +1631,14 @@ async function loadEntries(entries) {
     n.handle = en.handle || null;
     n.eol = detectEol(text);
     n.dirty = false;
-    if (text.length > 400000) big = f.name;
+    if (text.length > 400000) { big = f.name; n.big = true; }
+    if (f.size > LARGE_FILE) large = { name: f.name, mb: Math.round(f.size / 1048576) };
     openIds.push(n.id);
     last = n; opened++;
   }
   if (last) activate(last.id);
-  if (big) toast(tr('toastBigNote', { name: big }));
+  if (large) toast(tr('toastLarge', { name: large.name, mb: large.mb }));
+  else if (big) toast(tr('toastBigNote', { name: big }));
   else if (opened) toast(tr('toastLoaded', { n: opened }));
 }
 async function openFiles() {
@@ -1561,35 +1690,220 @@ function persistSoon() { schedulePersist(); }
 window.addEventListener('beforeunload', persist);
 
 /* ============================================================
-   Command palette  (Ctrl+P notes · Ctrl+Shift+P commands · Ctrl+G :line)
+   Actions and keyboard shortcuts (user-customizable)
    ============================================================ */
-const COMMANDS = [
-  { label: 'File: New Note', key: 'Alt+N', run: newNote },
-  { label: 'File: Close Tab', key: 'Alt+W', run: () => closeTab(activeId) },
-  { label: 'File: Open File…', key: 'Mod+O', run: openFiles },
-  { label: 'File: Save', key: 'Mod+S', run: saveFile },
-  { label: 'File: Save As…', key: 'Mod+Shift+S', run: saveFileAs },
-  { label: 'View: Toggle Sidebar', key: 'Mod+B', run: toggleSidebar },
-  { label: 'View: Toggle Minimap', run: toggleMinimap },
-  { label: 'View: Toggle Word Wrap', run: toggleWrap },
-  { label: 'View: Switch Language (中文 / English)', key: 'Alt+L', run: toggleLang },
-  { label: 'Filter: Open Filter Bar', key: 'Mod+Shift+F', run: openFilter },
-  { label: 'Filter: Close and Clear Decorations', run: closeFilter },
-  { label: 'Filter: Include Mode (keep matching lines)', run: () => { F.on = true; setF({ mode: 'include' }); } },
-  { label: 'Filter: Exclude Mode (drop matching lines)', run: () => { F.on = true; setF({ mode: 'exclude' }); } },
-  { label: 'Filter: Toggle Regex', key: 'Alt+R', run: () => { F.on = true; setF({ regex: !F.regex }); } },
-  { label: 'Filter: Toggle Case Sensitive', key: 'Alt+C', run: () => { F.on = true; setF({ caseS: !F.caseS }); } },
-  { label: 'Filter: Toggle Fold Unmatched Lines', run: () => { F.on = true; setF({ fold: !F.fold }); } },
-  { label: 'Filter: Toggle Results Panel', run: () => { F.on = true; setF({ panel: !F.panel }); } },
-  { label: 'Filter: Copy Filtered Lines', run: actCopy },
-  { label: 'Filter: Export Filtered Lines to New Tab', run: actExport },
-  { label: 'Filter: Delete Matched Lines', run: () => actDelete('matched') },
-  { label: 'Filter: Delete Unmatched Lines', run: () => actDelete('unmatched') }
-].concat(LANGS.map(l => ({ label: 'Syntax: ' + l.label, run: () => { el.stLang.value = l.id; el.stLang.dispatchEvent(new Event('change')); } })));
-
-function commandList() {
-  return COMMANDS.map(c => ({ label: lang === 'zh' ? cmdZh(c.label) : c.label, key: c.key, run: c.run }));
+/*KEYS*/
+const CODE_KEYS = { Slash: '/', Backslash: '\\', BracketLeft: '[', BracketRight: ']', Comma: ',', Period: '.', Semicolon: ';', Quote: "'", Backquote: '`', Minus: '-', Equal: '=' };
+const NAMED_KEYS = { ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', ' ': 'Space' };
+const RESERVED = ['Mod+A', 'Mod+C', 'Mod+V', 'Mod+X', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z'];
+const COMBO_RE = /^(?:Mod\+)?(?:Ctrl\+)?(?:Alt\+)?(?:Shift\+)?[A-Za-z0-9\/\\\[\],.;'`=-]+$/;
+function keyToken(e) {
+  const c = e.code || '';
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit[0-9]$/.test(c)) return c.slice(5);
+  if (/^F[0-9]{1,2}$/.test(c)) return c;
+  if (CODE_KEYS[c]) return CODE_KEYS[c];
+  if (NAMED_KEYS[e.key]) return NAMED_KEYS[e.key];
+  if (/^[a-z0-9]$/i.test(e.key || '')) return e.key.toUpperCase();
+  return null;
 }
+// Canonical form: Mod (Ctrl, or Cmd on a Mac) + Ctrl (Mac only) + Alt + Shift + key, for example "Mod+Shift+F".
+function comboFromEvent(e, mac) {
+  const k = keyToken(e);
+  if (!k) return null;
+  if (!mac && e.metaKey) return null;
+  const mods = [];
+  if (mac ? e.metaKey : e.ctrlKey) mods.push('Mod');
+  if (mac && e.ctrlKey) mods.push('Ctrl');
+  if (e.altKey) mods.push('Alt');
+  if (e.shiftKey) mods.push('Shift');
+  return mods.concat(k).join('+');
+}
+// A shortcut needs a real modifier (or an F key) so it can never swallow normal typing.
+function bindable(combo) { return /(^|\+)F[0-9]{1,2}$/.test(combo) || /^(?:Mod\+|Ctrl\+|Alt\+)/.test(combo); }
+function makeKeyStore(actions) {
+  const byId = {};
+  actions.forEach(a => { byId[a.id] = a; });
+  let custom = {}, bind = {};
+  const defOf = id => (byId[id] && byId[id].def) || [];
+  const S = {
+    custom() { return custom; },
+    bindings(id) { return custom[id] ? custom[id] : defOf(id); },
+    rebuild() { bind = {}; actions.forEach(a => { S.bindings(a.id).forEach(c => { bind[c] = a.id; }); }); },
+    lookup(combo) { return bind[combo] || null; },
+    owner(combo, except) { const id = bind[combo]; return id && id !== except ? id : null; },
+    set(id, list) {
+      const d = defOf(id);
+      if (list.length === d.length && list.every(c => d.indexOf(c) >= 0)) delete custom[id]; else custom[id] = list;
+    },
+    add(id, combo) {
+      const owner = S.owner(combo, id);
+      if (owner) S.set(owner, S.bindings(owner).filter(c => c !== combo));
+      if (S.bindings(id).indexOf(combo) < 0) S.set(id, S.bindings(id).concat(combo));
+      S.rebuild();
+      return owner;
+    },
+    remove(id, combo) { S.set(id, S.bindings(id).filter(c => c !== combo)); S.rebuild(); },
+    reset(id) {
+      delete custom[id];
+      defOf(id).forEach(c => { const o = S.owner(c, id); if (o) S.set(o, S.bindings(o).filter(x => x !== c)); });
+      S.rebuild();
+    },
+    resetAll() { custom = {}; S.rebuild(); },
+    load(saved, valid) {
+      custom = {};
+      if (saved && typeof saved === 'object') {
+        Object.keys(saved).forEach(id => {
+          const list = saved[id];
+          if (byId[id] && Array.isArray(list) && list.every(valid)) custom[id] = list.slice(0, 8);
+        });
+      }
+      S.rebuild();
+    }
+  };
+  S.rebuild();
+  return S;
+}
+/*END KEYS*/
+
+const inEditor = () => cm.hasFocus();
+const EDITOR_ACTIONS = [
+  ['selectNextOccurrence', 'Select Next Occurrence', ['Mod+D']],
+  ['swapLineUp', 'Move Line Up', ['Mod+Shift+Up']],
+  ['swapLineDown', 'Move Line Down', ['Mod+Shift+Down']],
+  ['duplicateLine', 'Duplicate Line', ['Mod+Shift+D']],
+  ['deleteLine', 'Delete Line', ['Mod+Shift+K']],
+  ['selectLine', 'Select Line', ['Mod+L']],
+  ['toggleComment', 'Toggle Comment', ['Mod+/']],
+  ['insertLineAfter', 'Insert Line After', ['Mod+Enter']],
+  ['insertLineBefore', 'Insert Line Before', ['Mod+Shift+Enter']],
+  ['joinLines', 'Join Lines', ['Mod+J']],
+  ['indentMore', 'Indent', ['Mod+]']],
+  ['indentLess', 'Outdent', ['Mod+[']],
+  ['goToBracket', 'Go to Matching Bracket', ['Mod+M']],
+  ['addCursorToPrevLine', 'Add Cursor Above', ['Mod+Alt+Up']],
+  ['addCursorToNextLine', 'Add Cursor Below', ['Mod+Alt+Down']]
+];
+const ACTIONS = [
+  { id: 'palette.notes', label: 'General: Go to Note…', def: ['Mod+P'], run: () => openPalette('') },
+  { id: 'palette.commands', label: 'General: Command Palette…', def: ['Mod+Shift+P'], run: () => openPalette('>') },
+  { id: 'goto.line', label: 'General: Go to Line…', def: ['Mod+G'], run: () => openPalette(':') },
+  { id: 'keys.open', label: 'General: Keyboard Shortcuts…', def: ['Mod+,'], run: () => openKeys() },
+  { id: 'about', label: 'General: About PersonalNotebook', def: [], run: () => openAbout() },
+  { id: 'file.new', label: 'File: New Note', def: ['Alt+N'], run: newNote },
+  { id: 'file.close', label: 'File: Close Tab', def: ['Alt+W'], run: () => closeTab(activeId) },
+  { id: 'file.open', label: 'File: Open File…', def: ['Mod+O'], run: openFiles },
+  { id: 'file.save', label: 'File: Save', def: ['Mod+S'], run: saveFile },
+  { id: 'file.saveas', label: 'File: Save As…', def: ['Mod+Shift+S'], run: saveFileAs },
+  { id: 'view.sidebar', label: 'View: Toggle Sidebar', def: ['Mod+B'], run: toggleSidebar },
+  { id: 'view.minimap', label: 'View: Toggle Minimap', def: [], run: toggleMinimap },
+  { id: 'view.wrap', label: 'View: Toggle Word Wrap', def: [], run: toggleWrap },
+  { id: 'view.lang', label: 'View: Switch Language (中文 / English)', def: ['Alt+L'], run: toggleLang },
+  { id: 'filter.open', label: 'Filter: Open Filter Bar', def: ['Mod+Shift+F', 'Alt+F', 'Mod+F'], run: openFilter },
+  { id: 'filter.close', label: 'Filter: Close and Clear Decorations', def: [], run: closeFilter },
+  { id: 'filter.next', label: 'Filter: Next Result', def: ['F3'], when: () => F.on, run: () => navigate(1) },
+  { id: 'filter.prev', label: 'Filter: Previous Result', def: ['Shift+F3'], when: () => F.on, run: () => navigate(-1) },
+  { id: 'filter.include', label: 'Filter: Include Mode (keep matching lines)', def: [], run: () => { F.on = true; setF({ mode: 'include' }); } },
+  { id: 'filter.exclude', label: 'Filter: Exclude Mode (drop matching lines)', def: [], run: () => { F.on = true; setF({ mode: 'exclude' }); } },
+  { id: 'filter.regex', label: 'Filter: Toggle Regex', def: ['Alt+R'], when: () => F.on, run: () => { F.on = true; setF({ regex: !F.regex }); } },
+  { id: 'filter.case', label: 'Filter: Toggle Case Sensitive', def: ['Alt+C'], when: () => F.on, run: () => { F.on = true; setF({ caseS: !F.caseS }); } },
+  { id: 'filter.fold', label: 'Filter: Toggle Fold Unmatched Lines', def: [], run: () => { F.on = true; setF({ fold: !F.fold }); } },
+  { id: 'filter.panel', label: 'Filter: Toggle Results Panel', def: [], run: () => { F.on = true; setF({ panel: !F.panel }); } },
+  { id: 'filter.copy', label: 'Filter: Copy Filtered Lines', def: [], run: actCopy },
+  { id: 'filter.export', label: 'Filter: Export Filtered Lines to New Tab', def: [], run: actExport },
+  { id: 'filter.delmatched', label: 'Filter: Delete Matched Lines', def: [], run: () => actDelete('matched') },
+  { id: 'filter.delunmatched', label: 'Filter: Delete Unmatched Lines', def: [], run: () => actDelete('unmatched') }
+].concat(EDITOR_ACTIONS.filter(x => CodeMirror.commands[x[0]]).map(x => ({
+  id: 'editor.' + x[0], label: 'Editor: ' + x[1], def: x[2], when: inEditor, run: () => cm.execCommand(x[0])
+})));
+const ACT_BY_ID = {};
+ACTIONS.forEach(a => { ACT_BY_ID[a.id] = a; });
+KS = makeKeyStore(ACTIONS);
+
+const actLabel = a => lang === 'zh' ? cmdZh(a.label) : a.label;
+const actShort = a => actLabel(a).replace(/^[^:：]*[:：]\s*/, '');
+function commandList() {
+  const acts = ACTIONS.map(a => ({ label: actLabel(a), key: KS.bindings(a.id)[0] || '', run: a.run }));
+  const syn = LANGS.map(l => ({
+    label: (lang === 'zh' ? '語法：' : 'Syntax: ') + l.label, key: '',
+    run: () => { el.stLang.value = l.id; el.stLang.dispatchEvent(new Event('change')); }
+  }));
+  return acts.concat(syn);
+}
+
+/* ---------- keyboard shortcuts dialog ---------- */
+function renderKeys() {
+  const q = el.keysFilter.value.trim().toLowerCase();
+  let html = '', lastGroup = null;
+  ACTIONS.forEach(a => {
+    const bs = KS.bindings(a.id), full = actLabel(a);
+    if (q && (full + ' ' + a.label + ' ' + bs.map(kb).join(' ')).toLowerCase().indexOf(q) < 0) return;
+    const g = a.label.split(':')[0];
+    if (g !== lastGroup) { html += '<div class="k-group">' + esc(lang === 'zh' ? (GROUP_ZH[g] || g) : g) + '</div>'; lastGroup = g; }
+    const custom = !!KS.custom()[a.id], rec = !!REC && REC.id === a.id;
+    let chips = bs.map(c => '<span class="chip' + (custom ? ' custom' : '') + '">' + esc(kb(c)) + '<button data-rm="' + esc(c) + '" data-id="' + a.id +
+      '" title="' + esc(tr('keysRemove')) + '" aria-label="' + esc(tr('keysRemove') + ' ' + kb(c)) + '">' + icon('close') + '</button></span>').join('');
+    if (!bs.length && !rec) chips = '<span class="chip none">' + esc(tr('keysNone')) + '</span>';
+    if (rec) chips += '<span class="chip recording">' + esc(tr('keysRecording')) + '</span>';
+    html += '<div class="krow' + (rec ? ' rec' : '') + '"><span class="k-label">' + esc(actShort(a)) + '</span><span class="k-chips">' + chips + '</span>' +
+      '<button class="act" data-add="' + a.id + '" title="' + esc(tr('keysAdd')) + '" aria-label="' + esc(tr('keysAdd')) + '">' + icon('plus') + '</button>' +
+      (custom ? '<button class="act" data-reset="' + a.id + '">' + esc(tr('keysReset')) + '</button>' : '') + '</div>';
+  });
+  el.keysList.innerHTML = html || '<div class="keys-hint">' + esc(tr('palEmpty')) + '</div>';
+}
+function openKeys() {
+  REC = null;
+  el.keysDlg.hidden = false;
+  el.keysFilter.value = '';
+  el.keysHint.textContent = tr('keysHint');
+  renderKeys();
+  el.keysFilter.focus();
+}
+function closeKeys() { REC = null; el.keysDlg.hidden = true; schedulePersist(); cm.focus(); }
+function recordKey(e) {
+  e.preventDefault(); e.stopPropagation();
+  if (e.key === 'Escape') { REC = null; renderKeys(); return; }
+  const combo = comboFromEvent(e, isMac);
+  if (!combo) return;
+  if (!bindable(combo)) { toast(tr('toastNeedMod')); return; }
+  if (RESERVED.indexOf(combo) >= 0) { toast(tr('toastReserved', { combo: kb(combo) })); return; }
+  const owner = KS.add(REC.id, combo);
+  REC = null;
+  renderKeys();
+  schedulePersist();
+  if (owner) toast(tr('toastMoved', { name: actShort(ACT_BY_ID[owner]) }));
+}
+el.keysList.addEventListener('click', e => {
+  const add = e.target.closest('[data-add]');
+  if (add) { REC = { id: add.dataset.add }; renderKeys(); return; }
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { KS.remove(rm.dataset.id, rm.dataset.rm); renderKeys(); schedulePersist(); return; }
+  const rs = e.target.closest('[data-reset]');
+  if (rs) { KS.reset(rs.dataset.reset); renderKeys(); schedulePersist(); }
+});
+el.keysFilter.addEventListener('input', renderKeys);
+el.keysFilter.addEventListener('focus', () => { if (REC) { REC = null; renderKeys(); } });
+el.keysReset.addEventListener('click', () => { KS.resetAll(); REC = null; renderKeys(); schedulePersist(); toast(tr('toastKeysReset')); });
+el.keysDone.addEventListener('click', closeKeys);
+el.keysClose.addEventListener('click', closeKeys);
+el.keysDlg.addEventListener('mousedown', e => { if (e.target === el.keysDlg) closeKeys(); });
+el.stKeys.addEventListener('click', openKeys);
+
+/* ---------- about / version dialog ---------- */
+function renderAbout() {
+  el.aboutVer.textContent = 'v' + APP_VERSION + ' · ' + APP_DATE;
+  el.aboutLog.innerHTML = CHANGELOG.map(c => '<h4>v' + esc(c.v) + '<span>' + esc(c.date) + '</span></h4><ul>' +
+    c[lang === 'zh' ? 'zh' : 'en'].map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>').join('');
+}
+function openAbout() { renderAbout(); el.aboutDlg.hidden = false; el.aboutClose.focus(); }
+function closeAbout() { el.aboutDlg.hidden = true; cm.focus(); }
+el.aboutClose.addEventListener('click', closeAbout);
+el.aboutDlg.addEventListener('mousedown', e => { if (e.target === el.aboutDlg) closeAbout(); });
+el.stVer.addEventListener('click', openAbout);
+
+/* ============================================================
+   Command palette  (notes · > commands · : line)
+   ============================================================ */
 function fuzzy(q, s) {
   if (!q) return { score: 0, idx: [] };
   const ql = q.toLowerCase(), sl = s.toLowerCase();
@@ -1672,22 +1986,22 @@ el.palette.addEventListener('mousedown', e => { if (e.target === el.palette) { c
    Global keys + sidebar/tab events
    ============================================================ */
 window.addEventListener('keydown', e => {
-  const m = e.ctrlKey || e.metaKey, c = e.code;
-  const stop = fn => { e.preventDefault(); e.stopPropagation(); fn(); };
-  if (m && !e.altKey && c === 'KeyP') return stop(() => openPalette(e.shiftKey ? '>' : ''));
-  if (m && !e.altKey && c === 'KeyF') return stop(openFilter);
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyF') return stop(openFilter);
-  if (m && !e.altKey && !e.shiftKey && c === 'KeyG') return stop(() => openPalette(':'));
-  if (m && !e.altKey && !e.shiftKey && c === 'KeyB') return stop(toggleSidebar);
-  if (m && !e.altKey && !e.shiftKey && c === 'KeyS') return stop(saveFile);
-  if (m && !e.altKey && e.shiftKey && c === 'KeyS') return stop(saveFileAs);
-  if (m && !e.altKey && !e.shiftKey && c === 'KeyO') return stop(openFiles);
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyN') return stop(newNote);
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyW') return stop(() => closeTab(activeId));
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyR' && F.on) return stop(() => setF({ regex: !F.regex }));
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyC' && F.on) return stop(() => setF({ caseS: !F.caseS }));
-  if (e.altKey && !m && !e.shiftKey && c === 'KeyL') return stop(toggleLang);
-  if (e.key === 'Escape' && PAL.open) return stop(() => { closePalette(); cm.focus(); });
+  if (REC) { recordKey(e); return; }
+  if (e.key === 'Escape') {
+    const stop = fn => { e.preventDefault(); e.stopPropagation(); fn(); };
+    if (!el.keysDlg.hidden) return stop(closeKeys);
+    if (!el.aboutDlg.hidden) return stop(closeAbout);
+    if (PAL.open) return stop(() => { closePalette(); cm.focus(); });
+    return;
+  }
+  if (!el.keysDlg.hidden || !el.aboutDlg.hidden || !el.nameDlg.hidden) return;
+  const combo = comboFromEvent(e, isMac);
+  const id = combo && KS.lookup(combo);
+  if (!id) return;
+  const a = ACT_BY_ID[id];
+  if (a.when && !a.when()) return;
+  e.preventDefault(); e.stopPropagation();
+  a.run();
 }, true);
 
 el.tabs.addEventListener('click', e => {
@@ -1739,6 +2053,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cm
       }
       if (saved.UI) ['sidebar', 'minimap', 'wrap'].forEach(k => { if (typeof saved.UI[k] === 'boolean') UI[k] = saved.UI[k]; });
       if (saved.UI && (saved.UI.lang === 'zh' || saved.UI.lang === 'en')) UI.lang = saved.UI.lang;
+      KS.load(saved.keys, c => typeof c === 'string' && COMBO_RE.test(c));
       restored = notes.length > 0;
       // Replace an untouched sample README / todo saved by an earlier version with the English-only text.
       [['README.md', SAMPLE_README], ['todo.md', SAMPLE_TODO]].forEach(pair => {

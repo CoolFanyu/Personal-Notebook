@@ -1,6 +1,7 @@
 # PersonalNotebook  #docs #linefilter
 
 A Sublime-style notebook built around Line Filter: grep-like, instant filtering of every line in the current document.
+Version v0.0.1. Click the version in the status bar to see what is new.
 
 ## Quick start
 
@@ -18,9 +19,18 @@ A Sublime-style notebook built around Line Filter: grep-like, instant filtering 
 - Save (Ctrl+S) writes back to the original file when the browser allows it.
 - Save As (Ctrl+Shift+S) writes the note to a new file and links the tab to it.
 - A dot on a tab means the note has changes that are not saved to a file yet.
+- There is no file size limit. Very large files (hundreds of MB) can feel slow because the whole file is held in memory.
 - To save straight into the original file, open the standalone HTML file in Chrome or Edge.
 - Inside the claude.ai viewer the browser cannot grant write access, so Save offers a downloaded copy instead.
 - Notes are also kept in this browser automatically, so closing the page does not lose them.
+
+## Customize shortcuts
+
+- Open Keyboard Shortcuts with Ctrl+, or the Shortcuts button in the status bar.
+- Click + on a row, then press the new key combination. Esc cancels.
+- An action can have several shortcuts. Click x on a shortcut to remove it, or Reset to restore the defaults.
+- Reusing a shortcut moves it from the action that had it. Reset all restores every default.
+- A shortcut needs Ctrl, Alt or Cmd (or an F key). Changes are saved in this browser.
 
 ## Filter options
 
@@ -31,14 +41,16 @@ A Sublime-style notebook built around Line Filter: grep-like, instant filtering 
     Context       show N lines around each match (Include mode)
     Fold          collapse non-matching lines in the editor
 
-## Shortcuts
+## Default shortcuts
 
     Ctrl+P            go to note
     Ctrl+Shift+P      command palette
+    Ctrl+,            keyboard shortcuts
     Ctrl+O            open file
     Ctrl+S            save
     Ctrl+Shift+S      save as
     Ctrl+Shift+F      open the filter bar (Alt+F and Ctrl+F also work)
+    F3 / Shift+F3     next / previous filter result
     Alt+R / Alt+C     regex / match case
     Alt+L             switch language
     Ctrl+D            select next occurrence
@@ -52,8 +64,9 @@ A Sublime-style notebook built around Line Filter: grep-like, instant filtering 
 ## Architecture
 
     UI shell        sidebar, tabs, filter bar, results panel, status bar
-    Editor core     CodeMirror 5 + sublime keymap, one Doc per tab
+    Editor core     CodeMirror 5, one Doc per tab
+    Actions         one registry of commands and shortcuts, shared by keys and the palette
     Filter engine   filterLines(texts, filter) -> kinds[] (pure function)
     Decorations     line highlight, fold, minimap, results list
     File I/O        File System Access API, file input, downloads capability
-    Storage         localStorage (notes and preferences)
+    Storage         localStorage (notes, shortcuts and preferences)
